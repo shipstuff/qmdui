@@ -1,10 +1,16 @@
 # QMDUI One-Shot Build Prompt
 
-You are building `qmdui`, a local-first web UI for managing QMD, the `@tobilu/qmd` local markdown search engine.
+You are building `qmdui`, an Open WebUI-oriented admin and retrieval control plane for QMD, the `@tobilu/qmd` local markdown search engine.
 
 ## Goal
 
-Create a complete usable UI that exposes every QMD CLI feature through a human-friendly interface, with a compact dashboard for index health and common actions. Use QMD under the hood. Prefer the `@tobilu/qmd` SDK for supported operations, and use a small, audited child-process wrapper around the `qmd` CLI only for features not exposed by the SDK.
+Create an admin-only QMD management surface plus Open WebUI integration for regular users.
+
+Regular users should see the normal Open WebUI experience: ChatGPT-like chat, chat list/history, user profile/settings, and any QMD-backed tools/pipes/models their groups are allowed to use. Do not build a separate regular-user chat UI in QMDUI.
+
+Admin users should see Open WebUI plus relevant admin controls: Open WebUI user/group management where available, QMD dashboard metrics, QMD collection management, ingestion/conversion configuration, context management, job controls, access policy mapping, MCP configuration, and Open WebUI retrieval integration settings.
+
+Use QMD under the hood. Prefer the `@tobilu/qmd` SDK for supported operations, and use a small, audited child-process wrapper around the `qmd` CLI only for features not exposed by the SDK.
 
 QMD primarily indexes markdown. This app must additionally support non-markdown source files by converting them into markdown or plain text before indexing, while preserving a clear link back to the original source file.
 
@@ -18,9 +24,10 @@ This workspace may be empty. Scaffold the app from scratch.
 
 - Node >= 22
 - TypeScript
-- Vite + React frontend
+- Admin UI can be a Vite + React admin surface, but it must be positioned as admin-only and integrated with Open WebUI auth/RBAC.
 - Express backend API
-- Use plain CSS or a small local styling setup; do not create a marketing landing page
+- Open WebUI remains the primary end-user frontend.
+- Use plain CSS or a small local styling setup for QMDUI admin pages; do not create a marketing landing page.
 - Use lucide-react icons
 - Use server-side APIs for all filesystem/QMD operations
 - Bind backend to localhost only
@@ -73,12 +80,12 @@ Use CLI fallback for:
 
 ## Search UX
 
-Expose search by human-facing modes, not raw QMD command names.
+Expose search/retrieval by human-facing modes, not raw QMD command names. These modes are used by admin diagnostic screens and by Open WebUI tools/pipes.
 
 - **Quick Search**: fast keyword search, backed by `qmd search` / SDK `searchLex`.
   - Use for exact terms, names, filenames, symbols, error strings, and quoted phrases.
   - Does not require embeddings or local LLM models.
-  - Should be the default global/header search mode.
+  - Should be the default retrieval mode for lightweight tool calls.
 - **Semantic Search**: meaning-based vector search, backed by `qmd vsearch` / SDK `searchVector`.
   - Use when the human does not know the exact words.
   - Requires embeddings.
@@ -89,7 +96,7 @@ Expose search by human-facing modes, not raw QMD command names.
   - Must run as a job or clearly show loading/progress when model work is active.
   - Expose advanced controls: intent, candidate limit, no rerank, explain, structured `lex`/`vec`/`hyde` query builder.
 
-The UI may show implementation details in tooltips or advanced panels, for example "Quick Search runs qmd search", but the primary labels should be Quick, Semantic, and Deep.
+Admin diagnostics may show implementation details in tooltips or advanced panels, for example "Quick Search runs qmd search", but the primary labels should be Quick, Semantic, and Deep.
 
 ## Open WebUI Integration
 
@@ -398,20 +405,27 @@ Implement an in-memory job runner with:
 
 Long-running operations must not block the UI.
 
-## Frontend Screens
+## User Interface Requirements
 
-1. Dashboard
+1. Regular User Experience: Open WebUI
+   - regular users see the normal Open WebUI screens: chat, chat list/history, profile/settings
+   - QMDUI must not replace the normal Open WebUI chat interface for regular users
+   - QMD-backed retrieval appears as an approved Open WebUI tool/pipe/model according to group access
+   - regular users can ask questions in Open WebUI and receive LLM answers grounded in QMD retrieval context
+   - user-visible citations must respect collection policy and avoid leaking hidden admin/source-path details
+   - regular users do not see QMD dashboards, ingestion status, source folder paths, converter logs, update commands, cleanup controls, or mutation controls
+
+2. Admin Dashboard
    - health cards: documents, embeddings pending, vector index, collections, DB/index path, MCP state
    - Open WebUI connection card with base URL, model, and health
-   - admin-only QMD dashboard; regular users should not see this screen
    - ingestion cards: converted files, skipped files, failed conversions
    - recent jobs with live status
    - action buttons for scan folder, convert folder, update, embed, pull models, cleanup, start/stop MCP
    - collection/context/conversion warnings
 
-2. Search
+3. Admin Retrieval Diagnostics
    - primary modes/tabs: Quick Search, Semantic Search, Deep Search
-   - Quick Search is the default and uses fast keyword/BM25 search
+   - Quick Search uses fast keyword/BM25 search
    - Semantic Search uses vector similarity and clearly indicates embeddings are required
    - Deep Search supports query, intent, collections, limit, min score, candidate limit, no rerank, explain, full, line numbers
    - Deep Search includes a structured query builder for multiple rows of `lex`, `vec`, `hyde`, plus optional intent
@@ -421,14 +435,14 @@ Long-running operations must not block the UI.
    - "Ask with Open WebUI" and "Copy RAG prompt" actions for selected results
    - Export results as JSON/CSV/Markdown/XML/files where possible
 
-3. Documents
+4. Admin Documents
    - collection/file browser equivalent to `qmd ls`
    - get document by path/docid
    - line slicing controls: from line, max lines, line numbers
    - multi-get form for glob or comma-separated paths with max bytes and max lines
    - show original source metadata for converted documents
 
-4. Collections
+5. Admin Collections
    - list collections with path, pattern, file count, updated age, include/exclude state
    - add collection: source folder path, name, glob pattern, ignore patterns, ingestion mode
    - remove, rename, show details
@@ -440,13 +454,13 @@ Long-running operations must not block the UI.
    - access-control panel for mapping each collection to Open WebUI groups/users/admin-only/all-users
    - clear warning that collection removal never deletes source files
 
-5. Contexts
+6. Admin Contexts
    - list global and collection/path contexts
    - add global context
    - add context for qmd://collection/path
    - remove context
 
-6. Maintenance
+7. Admin Maintenance
    - update index
    - scan and convert non-markdown source folders
    - embed, force embed, max docs per batch, max batch MB, chunk strategy auto/regex
@@ -455,7 +469,7 @@ Long-running operations must not block the UI.
    - benchmark fixture runner
    - show raw logs for jobs
 
-7. MCP & Integrations
+8. Admin MCP & Integrations
    - start foreground HTTP MCP on selected port
    - start daemon HTTP MCP on selected port
    - stop daemon
@@ -470,16 +484,11 @@ Long-running operations must not block the UI.
    - skill show
    - skill install local/global with force/yes options
 
-8. Regular User Experience
-   - regular users should primarily use normal Open WebUI screens: chat, chat list/history, and user profile/settings
-   - QMDUI should not replace the normal Open WebUI chat interface for regular users
-   - QMD-backed retrieval appears as an approved Open WebUI tool/pipe/model according to group access
-   - user-visible citations should respect collection policy and avoid leaking hidden admin/source-path details
-
 ## Design Requirements
 
-- This is an operational tool, not a landing page.
-- First screen is the dashboard/app shell.
+- This is an admin control plane plus Open WebUI integration, not a landing page.
+- Regular users should land in Open WebUI chat, not a QMDUI dashboard.
+- Admin users should have access to QMDUI admin controls from an admin route/panel/extension.
 - Use a restrained, dense interface suitable for repeated work.
 - Sidebar navigation plus main content.
 - Avoid nested cards and oversized hero sections.
@@ -513,21 +522,22 @@ Long-running operations must not block the UI.
 - Keep ingestion/conversion logic isolated in `server/ingestion/`.
 - Use shared TypeScript types between frontend/backend where practical.
 - Add focused tests for command construction, job lifecycle, ingestion manifest behavior, converter selection, and query payload handling if feasible.
+- Add focused tests for RBAC filtering: regular users cannot access admin endpoints or unauthorized collections.
 - After implementation, run install/build/test.
 - Start the dev server and provide the local URL.
 
 ## Acceptance Criteria
 
-- A human can perform every documented QMD CLI workflow from the UI.
+- An admin can perform every documented QMD CLI workflow from admin controls.
 - Dashboard accurately reflects QMD status and ingestion/conversion status.
-- Search works for Quick Search, Semantic Search, Deep Search, and structured Deep Search query documents.
+- Admin retrieval diagnostics and Open WebUI retrieval tools work for Quick Search, Semantic Search, Deep Search, and structured Deep Search query documents.
 - Collection, context, document retrieval, update, embed, cleanup, MCP, model pull, skill, and bench workflows are reachable.
 - Non-markdown files can be converted into markdown/plain text and indexed without mutating source files.
 - Search results preserve original source file identity for converted documents.
 - QMDUI can expose read-only retrieval to Open WebUI through an OpenAPI tool spec and/or generated Pipe.
 - Open WebUI can use QMDUI search results as context for LLM answers with citations.
 - Admin users can manage QMD collections, contexts, ingestion, conversion, metrics, jobs, and access policies.
-- Regular users retain the normal Open WebUI chat experience and only access QMD-backed retrieval allowed by their groups.
+- Regular users retain the normal Open WebUI chat experience and only access QMD-backed retrieval allowed by their groups; they do not see QMDUI admin pages.
 - Collection retrieval is filtered by Open WebUI user/group/role policy.
 - Admin users can configure company branding for QMDUI-owned surfaces, and Open WebUI user-facing branding is customized only where supported/allowed while preserving required Open WebUI branding.
 - The primary collection workflow is folder-based: add source folder, scan, convert, update, embed.
