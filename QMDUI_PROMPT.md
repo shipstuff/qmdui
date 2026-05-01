@@ -93,7 +93,19 @@ Use CLI fallback for:
 
 ## Search UX
 
-Expose search/retrieval by human-facing modes, not raw QMD command names. These modes are used by admin diagnostic screens and by Open WebUI tools/pipes.
+Quick, Semantic, and Deep are retrieval modes, not regular-user buttons.
+
+Regular users should not need to choose between QMD search commands. They ask questions in normal Open WebUI chat. QMD retrieval is invoked through Open WebUI tools/pipes/models according to admin configuration, model behavior, and group policy.
+
+Admins can configure and test retrieval modes:
+
+- A QMD Open WebUI Tool, for example `qmd_retrieve`, should expose a `mode` parameter: `quick | semantic | deep`.
+- Admins can configure whether the model may choose the retrieval mode or whether mode is fixed per model/group/collection.
+- A QMD Pipe/model, for example `QMD Assistant` or `Company Knowledge`, can hide mode selection entirely and use admin defaults.
+- Optional Open WebUI Action Functions may add message actions like "Search company knowledge", but these are not the primary regular-user workflow.
+- Admin diagnostics should provide explicit Quick/Semantic/Deep controls to test speed, quality, embeddings, reranking, and access-policy behavior.
+
+Mode semantics:
 
 - **Quick Search**: fast keyword search, backed by `qmd search` / SDK `searchLex`.
   - Use for exact terms, names, filenames, symbols, error strings, and quoted phrases.
@@ -107,9 +119,9 @@ Expose search/retrieval by human-facing modes, not raw QMD command names. These 
   - Uses query expansion, BM25/vector retrieval, and optional LLM reranking.
   - May load local models, use GPU, and take longer.
   - Must run as a job or clearly show loading/progress when model work is active.
-  - Expose advanced controls: intent, candidate limit, no rerank, explain, structured `lex`/`vec`/`hyde` query builder.
+  - Admin diagnostics should expose advanced controls: intent, candidate limit, no rerank, explain, structured `lex`/`vec`/`hyde` query builder.
 
-Admin diagnostics may show implementation details in tooltips or advanced panels, for example "Quick Search runs qmd search", but the primary labels should be Quick, Semantic, and Deep.
+Admin diagnostics may show implementation details in tooltips or advanced panels, for example "Quick Search runs qmd search", but regular users should only see normal Open WebUI chat/tool/pipe behavior.
 
 ## Open WebUI Integration
 
@@ -439,7 +451,8 @@ Long-running operations must not block the UI.
 
 3. Admin Retrieval Diagnostics
    - implemented inside Open WebUI admin navigation
-   - primary modes/tabs: Quick Search, Semantic Search, Deep Search
+   - explicit diagnostic modes/tabs: Quick Search, Semantic Search, Deep Search
+   - these mode buttons are for admins only; regular users should not see three search buttons in chat
    - Quick Search uses fast keyword/BM25 search
    - Semantic Search uses vector similarity and clearly indicates embeddings are required
    - Deep Search supports query, intent, collections, limit, min score, candidate limit, no rerank, explain, full, line numbers
