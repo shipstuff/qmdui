@@ -91,6 +91,62 @@ Expose search by human-facing modes, not raw QMD command names.
 
 The UI may show implementation details in tooltips or advanced panels, for example "Quick Search runs qmd search", but the primary labels should be Quick, Semantic, and Deep.
 
+## Open WebUI Integration
+
+QMDUI should own retrieval, indexing, source normalization, collection management, and provenance. Open WebUI should own chat/generation.
+
+The goal is retrieval-augmented chat without duplicating QMDUI's ingestion/indexing work inside Open WebUI:
+
+```text
+human asks in Open WebUI
+  -> Open WebUI tool/pipe calls QMDUI
+  -> QMDUI runs Quick/Semantic/Deep search
+  -> QMDUI returns ranked context with source metadata
+  -> Open WebUI model summarizes/answers
+  -> answer includes citations/source links
+```
+
+Do not upload or sync source documents into Open WebUI Knowledge by default. That would duplicate ingestion, chunking, embeddings, and metadata. QMDUI remains the source of truth for collections and retrieval.
+
+Support two integration modes:
+
+- **OpenAPI Tool Mode**
+  - QMDUI exposes an OpenAPI spec for safe retrieval endpoints.
+  - Open WebUI can import QMDUI as an OpenAPI/function-calling tool server.
+  - Tool endpoints include Quick Search, Semantic Search, Deep Search, document get, collection list, and context-aware retrieval.
+- **Open WebUI Pipe Mode**
+  - QMDUI can generate or serve a small Open WebUI Pipe/Function file.
+  - The pipe appears in Open WebUI as a model, for example `QMD Deep Research`.
+  - The pipe receives a user prompt, calls QMDUI Deep Search, packs top results into a context prompt, calls the selected Open WebUI/Ollama model, and returns an answer with citations.
+
+Open WebUI settings:
+
+- base URL, default `http://localhost:3000`
+- API key/token
+- default model ID
+- retrieval mode: Quick, Semantic, or Deep
+- top K results
+- min score
+- max context characters/tokens
+- include snippets only vs full documents
+- include source metadata/citations
+- rerank enabled/disabled for Deep Search
+
+QMDUI UI features for this integration:
+
+- Dashboard card for Open WebUI connection health and configured model.
+- "Ask with Open WebUI" action from Search results and Document views.
+- "Copy RAG prompt" action that copies retrieved context plus citations for manual use.
+- "Generate Open WebUI Tool Spec" action that exposes/copies the OpenAPI URL.
+- "Generate Open WebUI Pipe" action that shows/downloads the Pipe/Function code and setup instructions.
+- Citations must include original source path, QMD generated path, title, docid, and line when available.
+
+Security constraints:
+
+- Open WebUI integration endpoints must be read-only retrieval/generation helpers.
+- Do not expose collection mutation, cleanup, update-command, or converter execution through the Open WebUI tool spec.
+- Require an explicit QMDUI API token for Open WebUI calls unless the app is intentionally running in unauthenticated localhost-only dev mode.
+
 ## Non-Markdown Ingestion
 
 Add a first-class ingestion layer for source files that QMD does not index directly as markdown.
@@ -251,6 +307,11 @@ Create REST APIs for:
 - `POST /api/search/semantic`
 - `POST /api/search/deep`
 - `POST /api/search/expand`
+- `GET /api/openapi.json`
+- `GET /api/integrations/open-webui/status`
+- `POST /api/integrations/open-webui/ask`
+- `POST /api/integrations/open-webui/copy-prompt`
+- `GET /api/integrations/open-webui/pipe.py`
 - `GET /api/documents`
 - `POST /api/documents/get`
 - `POST /api/documents/multi-get`
@@ -288,6 +349,7 @@ Long-running operations must not block the UI.
 
 1. Dashboard
    - health cards: documents, embeddings pending, vector index, collections, DB/index path, MCP state
+   - Open WebUI connection card with base URL, model, and health
    - ingestion cards: converted files, skipped files, failed conversions
    - recent jobs with live status
    - action buttons for scan folder, convert folder, update, embed, pull models, cleanup, start/stop MCP
@@ -302,6 +364,7 @@ Long-running operations must not block the UI.
    - Advanced panels/tooltips may show the QMD command equivalents: `qmd search`, `qmd vsearch`, `qmd query`
    - Results show score, docid, title, qmd path, original source path when converted, context, line/snippet
    - Click result to open document drawer/full page
+   - "Ask with Open WebUI" and "Copy RAG prompt" actions for selected results
    - Export results as JSON/CSV/Markdown/XML/files where possible
 
 3. Documents
@@ -342,6 +405,10 @@ Long-running operations must not block the UI.
    - start daemon HTTP MCP on selected port
    - stop daemon
    - show health URL and MCP endpoint
+   - configure Open WebUI base URL, API key/token, default model, retrieval mode, top K, min score, context size
+   - show OpenAPI tool URL for importing QMDUI retrieval into Open WebUI
+   - generate/show Open WebUI Pipe/Function code for QMD-backed chat
+   - test Open WebUI connection and run a sample retrieval-augmented answer
    - skill show
    - skill install local/global with force/yes options
 
@@ -366,6 +433,8 @@ Long-running operations must not block the UI.
 - For converters, only execute known converter binaries with explicit argument arrays.
 - Treat source folders as read-only. Never delete, rename, move, overwrite, or modify source files.
 - Only write generated content, manifests, logs, and cleanup targets inside `.qmdui/`.
+- Open WebUI tool/Pipe integration must only expose read-only retrieval endpoints by default.
+- Do not expose mutation, cleanup, shell-backed update commands, or converter execution to Open WebUI.
 - Surface command and conversion output logs.
 
 ## Implementation Quality
@@ -387,6 +456,8 @@ Long-running operations must not block the UI.
 - Collection, context, document retrieval, update, embed, cleanup, MCP, model pull, skill, and bench workflows are reachable.
 - Non-markdown files can be converted into markdown/plain text and indexed without mutating source files.
 - Search results preserve original source file identity for converted documents.
+- QMDUI can expose read-only retrieval to Open WebUI through an OpenAPI tool spec and/or generated Pipe.
+- Open WebUI can use QMDUI search results as context for LLM answers with citations.
 - The primary collection workflow is folder-based: add source folder, scan, convert, update, embed.
 - Source files are never deleted or modified by QMDUI.
 - Cleanup and stale-file handling only affect app-owned `.qmdui/` data and require confirmation for physical deletion.
