@@ -93,7 +93,14 @@ The UI may show implementation details in tooltips or advanced panels, for examp
 
 ## Open WebUI Integration
 
-QMDUI should own retrieval, indexing, source normalization, collection management, and provenance. Open WebUI should own chat/generation.
+QMDUI should own retrieval, indexing, source normalization, collection management, admin dashboards, and provenance. Open WebUI should own the normal user chat experience, chat history/list, profile/settings, and generation.
+
+Use Open WebUI's existing roles/groups model instead of inventing a parallel user system. Open WebUI has admin/user/pending roles and group-based access controls. QMDUI should respect that boundary:
+
+- Admins can access QMDUI dashboard and QMD management functions.
+- Regular users primarily see the normal Open WebUI chat UI.
+- Regular users can use QMD-backed chat/retrieval only for collections their role/group may access.
+- Regular users must not see source folder paths, ingestion logs, update commands, converter logs, cleanup controls, or collection mutation controls unless explicitly permitted.
 
 The goal is retrieval-augmented chat without duplicating QMDUI's ingestion/indexing work inside Open WebUI:
 
@@ -107,6 +114,31 @@ human asks in Open WebUI
 ```
 
 Do not upload or sync source documents into Open WebUI Knowledge by default. That would duplicate ingestion, chunking, embeddings, and metadata. QMDUI remains the source of truth for collections and retrieval.
+
+Role and group behavior:
+
+- Admin role:
+  - view dashboard metrics
+  - add/remove/modify collections
+  - configure source folders, globs, ignore rules, ingestion, conversion, and context
+  - run update/embed/cleanup/model-pull/benchmark jobs
+  - configure Open WebUI integration
+  - map QMD collections to Open WebUI users/groups
+- User role:
+  - use Open WebUI chat normally
+  - access QMD-backed retrieval through approved tools/pipes/models
+  - see only allowed collection names, document titles/snippets, citations, and source metadata permitted by policy
+  - no access to admin dashboard, mutation endpoints, source folder paths, shell-backed settings, or maintenance jobs
+- Pending role:
+  - no QMDUI or QMD-backed retrieval access until approved by an admin
+
+Collection access policy:
+
+- Each QMD collection should support an access-control mapping to Open WebUI groups/users.
+- Admins can choose whether a collection is visible to all users, specific groups, specific users, or admin-only.
+- Retrieval endpoints must filter collections by the authenticated Open WebUI user/group context.
+- Citations shown to regular users must avoid leaking hidden absolute source paths unless the collection policy allows it.
+- Admin views may show full source paths and diagnostics.
 
 Support two integration modes:
 
@@ -132,6 +164,21 @@ Open WebUI settings:
 - include source metadata/citations
 - rerank enabled/disabled for Deep Search
 
+Company branding and theming:
+
+- Admins need a way to configure company-specific branding for deployments where allowed, including company name, logo, favicon, primary/accent colors, and optional chat background.
+- Open WebUI supports full white-labeling/custom branding through its Enterprise customization path. Standard/non-enterprise Open WebUI deployments have branding restrictions and generally must keep Open WebUI branding visible and unmodified.
+- QMDUI must preserve Open WebUI branding where required and only rebrand/customize areas allowed by the deployment's Open WebUI licensing/configuration.
+- Provide a branding settings screen in QMDUI for QMDUI-owned admin pages.
+- QMDUI-owned admin pages can use the company logo, company name, favicon, primary/accent colors, and dashboard title.
+- For Open WebUI user-facing chat pages:
+  - keep Open WebUI branding visible where required;
+  - apply company customization only through supported/allowed mechanisms;
+  - allow subordinate company identity in allowed areas such as banners, permitted theme settings, deployment-specific pages, or QMDUI admin surfaces;
+  - if enterprise/white-label mode is available, expose the fuller replacement controls through supported Open WebUI customization mechanisms.
+- Store branding settings separately from QMD collection settings, for example `.qmdui/branding.json`.
+- Branding settings should support per-company deployment defaults, not per-user personal themes.
+
 QMDUI UI features for this integration:
 
 - Dashboard card for Open WebUI connection health and configured model.
@@ -146,6 +193,9 @@ Security constraints:
 - Open WebUI integration endpoints must be read-only retrieval/generation helpers.
 - Do not expose collection mutation, cleanup, update-command, or converter execution through the Open WebUI tool spec.
 - Require an explicit QMDUI API token for Open WebUI calls unless the app is intentionally running in unauthenticated localhost-only dev mode.
+- Admin-only QMDUI endpoints must require admin authorization.
+- User-facing retrieval endpoints must enforce collection-level group/user access.
+- Treat Open WebUI as the identity/RBAC authority when integrated.
 
 ## Non-Markdown Ingestion
 
@@ -312,6 +362,9 @@ Create REST APIs for:
 - `POST /api/integrations/open-webui/ask`
 - `POST /api/integrations/open-webui/copy-prompt`
 - `GET /api/integrations/open-webui/pipe.py`
+- `GET /api/access/policies`
+- `PUT /api/access/policies/:collectionName`
+- `POST /api/access/evaluate`
 - `GET /api/documents`
 - `POST /api/documents/get`
 - `POST /api/documents/multi-get`
@@ -350,6 +403,7 @@ Long-running operations must not block the UI.
 1. Dashboard
    - health cards: documents, embeddings pending, vector index, collections, DB/index path, MCP state
    - Open WebUI connection card with base URL, model, and health
+   - admin-only QMD dashboard; regular users should not see this screen
    - ingestion cards: converted files, skipped files, failed conversions
    - recent jobs with live status
    - action buttons for scan folder, convert folder, update, embed, pull models, cleanup, start/stop MCP
@@ -383,6 +437,7 @@ Long-running operations must not block the UI.
    - ignore patterns if available through config
    - conversion diagnostics and "Scan Folder" / "Convert Folder" / "Refresh Collection" / "Convert + update" actions
    - per-collection toggles for folder watching, auto-convert/update, and auto-embed
+   - access-control panel for mapping each collection to Open WebUI groups/users/admin-only/all-users
    - clear warning that collection removal never deletes source files
 
 5. Contexts
@@ -406,11 +461,20 @@ Long-running operations must not block the UI.
    - stop daemon
    - show health URL and MCP endpoint
    - configure Open WebUI base URL, API key/token, default model, retrieval mode, top K, min score, context size
+   - configure company branding for QMDUI-owned admin pages
+   - expose Open WebUI branding/theme settings only when supported/allowed by the deployment
    - show OpenAPI tool URL for importing QMDUI retrieval into Open WebUI
    - generate/show Open WebUI Pipe/Function code for QMD-backed chat
+   - configure how QMDUI validates Open WebUI user identity, role, and group membership
    - test Open WebUI connection and run a sample retrieval-augmented answer
    - skill show
    - skill install local/global with force/yes options
+
+8. Regular User Experience
+   - regular users should primarily use normal Open WebUI screens: chat, chat list/history, and user profile/settings
+   - QMDUI should not replace the normal Open WebUI chat interface for regular users
+   - QMD-backed retrieval appears as an approved Open WebUI tool/pipe/model according to group access
+   - user-visible citations should respect collection policy and avoid leaking hidden admin/source-path details
 
 ## Design Requirements
 
@@ -435,6 +499,10 @@ Long-running operations must not block the UI.
 - Only write generated content, manifests, logs, and cleanup targets inside `.qmdui/`.
 - Open WebUI tool/Pipe integration must only expose read-only retrieval endpoints by default.
 - Do not expose mutation, cleanup, shell-backed update commands, or converter execution to Open WebUI.
+- Keep Open WebUI branding visible where required. Do not replace, hide, recolor, or obscure Open WebUI branding unless the deployment supports/allows that customization.
+- Admin-only dashboard and QMD mutation endpoints must require admin authorization.
+- User-facing retrieval must filter by Open WebUI role/group/user access policy.
+- Never leak admin-only source paths, converter logs, update commands, or collection diagnostics to regular users.
 - Surface command and conversion output logs.
 
 ## Implementation Quality
@@ -458,6 +526,10 @@ Long-running operations must not block the UI.
 - Search results preserve original source file identity for converted documents.
 - QMDUI can expose read-only retrieval to Open WebUI through an OpenAPI tool spec and/or generated Pipe.
 - Open WebUI can use QMDUI search results as context for LLM answers with citations.
+- Admin users can manage QMD collections, contexts, ingestion, conversion, metrics, jobs, and access policies.
+- Regular users retain the normal Open WebUI chat experience and only access QMD-backed retrieval allowed by their groups.
+- Collection retrieval is filtered by Open WebUI user/group/role policy.
+- Admin users can configure company branding for QMDUI-owned surfaces, and Open WebUI user-facing branding is customized only where supported/allowed while preserving required Open WebUI branding.
 - The primary collection workflow is folder-based: add source folder, scan, convert, update, embed.
 - Source files are never deleted or modified by QMDUI.
 - Cleanup and stale-file handling only affect app-owned `.qmdui/` data and require confirmation for physical deletion.
