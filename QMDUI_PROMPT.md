@@ -1,14 +1,14 @@
 # QMDUI One-Shot Build Prompt
 
-You are building `qmdui`, an Open WebUI-oriented admin and retrieval control plane for QMD, the `@tobilu/qmd` local markdown search engine.
+You are building `qmdui`, a QMD admin/retrieval module built on top of Open WebUI for the `@tobilu/qmd` local markdown search engine.
 
 ## Goal
 
-Create an admin-only QMD management surface plus Open WebUI integration for regular users.
+Create QMD admin panels inside Open WebUI, not a separate standalone application.
 
 Regular users should see the normal Open WebUI experience: ChatGPT-like chat, chat list/history, user profile/settings, and any QMD-backed tools/pipes/models their groups are allowed to use. Do not build a separate regular-user chat UI in QMDUI.
 
-Admin users should see Open WebUI plus relevant admin controls: Open WebUI user/group management where available, QMD dashboard metrics, QMD collection management, ingestion/conversion configuration, context management, job controls, access policy mapping, MCP configuration, and Open WebUI retrieval integration settings.
+Admin users should see Open WebUI with additional QMD admin controls integrated into the existing Open WebUI admin experience: Open WebUI user/group management where available, QMD dashboard metrics, QMD collection management, ingestion/conversion configuration, context management, job controls, access policy mapping, MCP configuration, and Open WebUI retrieval integration settings.
 
 Use QMD under the hood. Prefer the `@tobilu/qmd` SDK for supported operations, and use a small, audited child-process wrapper around the `qmd` CLI only for features not exposed by the SDK.
 
@@ -22,16 +22,29 @@ This workspace may be empty. Scaffold the app from scratch.
 
 ## Tech Stack
 
-- Node >= 22
-- TypeScript
-- Admin UI can be a Vite + React admin surface, but it must be positioned as admin-only and integrated with Open WebUI auth/RBAC.
-- Express backend API
-- Open WebUI remains the primary end-user frontend.
-- Use plain CSS or a small local styling setup for QMDUI admin pages; do not create a marketing landing page.
-- Use lucide-react icons
-- Use server-side APIs for all filesystem/QMD operations
-- Bind backend to localhost only
-- Provide npm scripts: `dev`, `build`, `start`, `test` if tests are feasible
+- Build on top of Open WebUI, not beside it.
+- Use Open WebUI as the primary frontend and identity/RBAC host.
+- Add QMD admin pages/components/routes inside Open WebUI's existing admin surface where possible.
+- If Open WebUI's extension surface is insufficient for admin pages, make a minimal, clearly isolated Open WebUI fork/module rather than a separate standalone UI.
+- Keep QMD backend/control code in a separate module/service boundary that Open WebUI calls through internal APIs.
+- Node >= 22 for QMD/QMDUI backend functionality.
+- TypeScript for QMDUI backend/admin integration code where applicable.
+- Follow Open WebUI's existing frontend stack, component style, routing, admin navigation, icons, and theming conventions.
+- Use server-side APIs for all filesystem/QMD operations.
+- Bind QMD backend/internal APIs to localhost or internal network only unless explicitly configured.
+- Provide scripts/docs for running Open WebUI plus QMDUI integration locally.
+
+## Open WebUI Extension Architecture
+
+The implementation should treat Open WebUI as the application shell:
+
+- Regular user routes remain Open WebUI's normal chat/profile/history routes.
+- Admin QMD routes are added under Open WebUI admin navigation, for example Admin -> QMD.
+- Open WebUI auth/session/RBAC is the source of truth for whether a user is admin, regular user, or pending.
+- QMDUI admin components must use Open WebUI's existing layout, sidebar/admin navigation, tables, forms, modals, notifications, and theme tokens.
+- QMD-backed chat should appear to regular users as Open WebUI tools/pipes/models, not as a separate QMDUI chat page.
+- QMD backend APIs should be internal to the integrated deployment and protected by Open WebUI admin/user permissions.
+- Avoid maintaining a second unrelated React app unless it is only used as an implementation fallback for admin panels embedded into Open WebUI.
 
 ## Core Integration
 
@@ -405,7 +418,7 @@ Implement an in-memory job runner with:
 
 Long-running operations must not block the UI.
 
-## User Interface Requirements
+## Open WebUI User Interface Requirements
 
 1. Regular User Experience: Open WebUI
    - regular users see the normal Open WebUI screens: chat, chat list/history, profile/settings
@@ -416,6 +429,7 @@ Long-running operations must not block the UI.
    - regular users do not see QMD dashboards, ingestion status, source folder paths, converter logs, update commands, cleanup controls, or mutation controls
 
 2. Admin Dashboard
+   - implemented as an Open WebUI admin page/panel, not a standalone external dashboard
    - health cards: documents, embeddings pending, vector index, collections, DB/index path, MCP state
    - Open WebUI connection card with base URL, model, and health
    - ingestion cards: converted files, skipped files, failed conversions
@@ -424,6 +438,7 @@ Long-running operations must not block the UI.
    - collection/context/conversion warnings
 
 3. Admin Retrieval Diagnostics
+   - implemented inside Open WebUI admin navigation
    - primary modes/tabs: Quick Search, Semantic Search, Deep Search
    - Quick Search uses fast keyword/BM25 search
    - Semantic Search uses vector similarity and clearly indicates embeddings are required
@@ -436,6 +451,7 @@ Long-running operations must not block the UI.
    - Export results as JSON/CSV/Markdown/XML/files where possible
 
 4. Admin Documents
+   - implemented inside Open WebUI admin navigation
    - collection/file browser equivalent to `qmd ls`
    - get document by path/docid
    - line slicing controls: from line, max lines, line numbers
@@ -443,6 +459,7 @@ Long-running operations must not block the UI.
    - show original source metadata for converted documents
 
 5. Admin Collections
+   - implemented inside Open WebUI admin navigation
    - list collections with path, pattern, file count, updated age, include/exclude state
    - add collection: source folder path, name, glob pattern, ignore patterns, ingestion mode
    - remove, rename, show details
@@ -455,12 +472,14 @@ Long-running operations must not block the UI.
    - clear warning that collection removal never deletes source files
 
 6. Admin Contexts
+   - implemented inside Open WebUI admin navigation
    - list global and collection/path contexts
    - add global context
    - add context for qmd://collection/path
    - remove context
 
 7. Admin Maintenance
+   - implemented inside Open WebUI admin navigation
    - update index
    - scan and convert non-markdown source folders
    - embed, force embed, max docs per batch, max batch MB, chunk strategy auto/regex
@@ -470,6 +489,7 @@ Long-running operations must not block the UI.
    - show raw logs for jobs
 
 8. Admin MCP & Integrations
+   - implemented inside Open WebUI admin navigation
    - start foreground HTTP MCP on selected port
    - start daemon HTTP MCP on selected port
    - stop daemon
@@ -486,11 +506,11 @@ Long-running operations must not block the UI.
 
 ## Design Requirements
 
-- This is an admin control plane plus Open WebUI integration, not a landing page.
+- This is an Open WebUI admin extension/module plus QMD retrieval integration, not a landing page or standalone product shell.
 - Regular users should land in Open WebUI chat, not a QMDUI dashboard.
-- Admin users should have access to QMDUI admin controls from an admin route/panel/extension.
+- Admin users should access QMDUI admin controls from Open WebUI's admin navigation.
 - Use a restrained, dense interface suitable for repeated work.
-- Sidebar navigation plus main content.
+- Match Open WebUI's existing admin layout, navigation, spacing, components, dark/light modes, and interaction patterns.
 - Avoid nested cards and oversized hero sections.
 - Use icons for actions where appropriate.
 - Ensure all controls fit on mobile and desktop.
@@ -520,6 +540,7 @@ Long-running operations must not block the UI.
 - Keep CLI fallback isolated in `server/qmdCli.ts`.
 - Keep job runner isolated in `server/jobs.ts`.
 - Keep ingestion/conversion logic isolated in `server/ingestion/`.
+- Keep Open WebUI admin integration isolated in a QMD module/admin route set so future Open WebUI upgrades are manageable.
 - Use shared TypeScript types between frontend/backend where practical.
 - Add focused tests for command construction, job lifecycle, ingestion manifest behavior, converter selection, and query payload handling if feasible.
 - Add focused tests for RBAC filtering: regular users cannot access admin endpoints or unauthorized collections.
@@ -529,6 +550,7 @@ Long-running operations must not block the UI.
 ## Acceptance Criteria
 
 - An admin can perform every documented QMD CLI workflow from admin controls.
+- QMD admin controls are available inside Open WebUI admin navigation, not as a separate standalone admin application.
 - Dashboard accurately reflects QMD status and ingestion/conversion status.
 - Admin retrieval diagnostics and Open WebUI retrieval tools work for Quick Search, Semantic Search, Deep Search, and structured Deep Search query documents.
 - Collection, context, document retrieval, update, embed, cleanup, MCP, model pull, skill, and bench workflows are reachable.
@@ -537,7 +559,7 @@ Long-running operations must not block the UI.
 - QMDUI can expose read-only retrieval to Open WebUI through an OpenAPI tool spec and/or generated Pipe.
 - Open WebUI can use QMDUI search results as context for LLM answers with citations.
 - Admin users can manage QMD collections, contexts, ingestion, conversion, metrics, jobs, and access policies.
-- Regular users retain the normal Open WebUI chat experience and only access QMD-backed retrieval allowed by their groups; they do not see QMDUI admin pages.
+- Regular users retain the normal Open WebUI chat experience and only access QMD-backed retrieval allowed by their groups; they do not see QMD admin panels.
 - Collection retrieval is filtered by Open WebUI user/group/role policy.
 - Admin users can configure company branding for QMDUI-owned surfaces, and Open WebUI user-facing branding is customized only where supported/allowed while preserving required Open WebUI branding.
 - The primary collection workflow is folder-based: add source folder, scan, convert, update, embed.
