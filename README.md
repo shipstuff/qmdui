@@ -34,6 +34,14 @@ Generated Open WebUI artifacts are served from:
 - `GET /api/openwebui/tool.py`
 - `GET /api/openwebui/pipe.py`
 - `GET /api/openwebui/admin_tools.py`
+
+Fresh Open WebUI environments can be provisioned with:
+
+```bash
+OPEN_WEBUI_API_KEY=your-open-webui-admin-token npm run bootstrap:openwebui
+```
+
+The bootstrap creates or updates the default QMDUI group, retrieval/admin tools, assistant pipe, `Company Knowledge` model, model/tool access grants, and default/pinned model settings.
 - `GET /api/openapi.json`
 
 Check the two-service integration:
