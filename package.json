@@ -1,0 +1,39 @@
+{
+  "name": "qmdui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Open WebUI-native QMD admin/retrieval backend and integration artifacts.",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "check:openwebui": "node scripts/check-openwebui.mjs",
+    "import:openwebui": "node scripts/import-openwebui-artifacts.mjs",
+    "openwebui:backend": "bash scripts/openwebui-backend.sh",
+    "openwebui:frontend": "bash scripts/openwebui-frontend.sh",
+    "smoke:local": "node scripts/smoke-local.mjs"
+  },
+  "dependencies": {
+    "@tobilu/qmd": "^2.1.0",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "fast-glob": "^3.3.3",
+    "mime-types": "^3.0.2",
+    "yaml": "^2.8.3",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/mime-types": "^3.0.1",
+    "@types/node": "^25.0.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
