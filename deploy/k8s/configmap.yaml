@@ -17,13 +17,10 @@ data:
   QMD_INDEX: openclaw
   QMD_CONFIG_PATH: /data/config/qmd/openclaw.yml
   QMD_DB_PATH: /data/index/openclaw.sqlite
-  QMDUI_EMBED_PROVIDER: ollama
-  QMDUI_EMBED_TIMEOUT_MS: "600000"
+  QMDUI_EMBED_PROVIDER: qmd
+  QMDUI_EMBED_TIMEOUT_MS: "21600000"
   QMDUI_EMBED_REQUIRE_COMPLETE: "true"
   QMDUI_EMBED_FAIL_ON_ERRORS: "true"
-  QMDUI_OLLAMA_BASE_URL: http://ollama-mini-01:11434
-  QMDUI_OLLAMA_EMBED_MODEL: qwen3-embedding:8b
-  QMDUI_OLLAMA_BATCH_SIZE: "16"
   XDG_CONFIG_HOME: /data/config
   XDG_CACHE_HOME: /data/cache
   HOME: /data/home

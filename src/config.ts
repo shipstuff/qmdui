@@ -61,7 +61,7 @@ export function getConfig(): AppConfig {
     qmdDbPath,
     qmdConfigPath,
     embedProvider: envChoice(process.env.QMDUI_EMBED_PROVIDER, ["qmd", "ollama"], "qmd"),
-    embedTimeoutMs: numberEnv(process.env.QMDUI_EMBED_TIMEOUT_MS, 10 * 60 * 1000),
+    embedTimeoutMs: numberEnv(process.env.QMDUI_EMBED_TIMEOUT_MS, 6 * 60 * 60 * 1000),
     embedRequireComplete: boolEnv(process.env.QMDUI_EMBED_REQUIRE_COMPLETE, true),
     embedFailOnErrors: boolEnv(process.env.QMDUI_EMBED_FAIL_ON_ERRORS, true),
     ollamaBaseUrl: process.env.QMDUI_OLLAMA_BASE_URL ?? "http://ollama-mini-01:11434",

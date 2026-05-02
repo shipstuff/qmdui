@@ -510,7 +510,7 @@ class Tools:
         fail_on_errors: bool = True,
         __user__: Optional[dict] = None,
     ) -> dict:
-        """Admin-only: start a QMD embedding job. Use provider='ollama' to embed through the configured remote Ollama endpoint."""
+        """Admin-only: start a QMD embedding job. Defaults to local CPU QMD embeddings; use provider='ollama' only when a remote endpoint is configured."""
         payload = {
             "force": force,
             "provider": provider,

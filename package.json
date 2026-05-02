@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Open WebUI-native QMD admin/retrieval backend and integration artifacts.",
   "scripts": {
+    "postinstall": "node scripts/patch-qmd-embed-timeout.mjs",
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",

@@ -437,12 +437,15 @@ export function adminUiHtml(): string {
           ["Index", runtime.qmdIndexName],
           ["DB", runtime.qmdDbPath],
           ["Config", runtime.qmdConfigPath],
-          ["Embedding", runtime.embedProvider],
-          ["Ollama", runtime.ollamaBaseUrl],
-          ["Embed Model", runtime.ollamaEmbedModel],
+          ["Embedding", runtime.embedProvider === "qmd" ? "qmd (local CPU)" : runtime.embedProvider],
+          ["Embed Model", runtime.activeEmbedModel || runtime.ollamaEmbedModel],
+          ["Embed Timeout", runtime.embedTimeoutMs ? Math.round(runtime.embedTimeoutMs / 60000) + " min" : ""],
           ["Data", runtime.dataDir],
           ["Seed", runtime.seedSourceRoot]
         ];
+        if (runtime.embedProvider === "ollama") {
+          rows.splice(5, 0, ["Ollama", runtime.ollamaBaseUrl]);
+        }
         el("runtime").innerHTML = rows.map((row) => (
           '<div class="item"><h3>' + h(row[0]) + '</h3><code>' + h(row[1] || "") + '</code></div>'
         )).join("");

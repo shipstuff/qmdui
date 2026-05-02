@@ -128,6 +128,7 @@ app.get("/api/admin/runtime", requireAdmin, (_req, res) => {
     qmdDbPath: config.qmdDbPath,
     qmdConfigPath: config.qmdConfigPath,
     embedProvider: config.embedProvider,
+    activeEmbedModel: config.embedProvider === "ollama" ? config.ollamaEmbedModel : "embeddinggemma",
     embedTimeoutMs: config.embedTimeoutMs,
     embedRequireComplete: config.embedRequireComplete,
     embedFailOnErrors: config.embedFailOnErrors,
