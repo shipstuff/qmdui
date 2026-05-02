@@ -78,7 +78,7 @@ All three retrieval modes were validated against query `deployment checklist`:
 - Semantic: returns `notes.md` as strongest result, with `runbook.txt` as a weaker secondary result.
 - Deep: returns `notes.md` as strongest result, with `runbook.txt` as a secondary result.
 
-## Known P1 Gaps
+## Addressed P1 Hardening
 
 ### Raw Body Metadata Leakage
 
@@ -89,9 +89,9 @@ Generated markdown includes frontmatter such as:
 - `original_relative_path`
 - converter metadata
 
-The citation policy hides `originalPath` when `exposeSourcePaths` is false, but the retrieval body/snippet can still include frontmatter when raw generated document text is returned to Open WebUI. This is a leakage risk for regular users.
+QMDUI strips generated frontmatter and leading generated metadata lines from regular-user retrieval `body`, `snippet`, and `context` fields when `exposeSourcePaths` is false. Full metadata remains available only when collection policy allows source-path exposure.
 
-Before broader use, regular-user retrieval responses should strip or redact generated frontmatter and other admin-only metadata from `body`, `snippet`, and tool output. Admin diagnostics can continue to show full metadata.
+Retrieval also honors `includeFullDocument`: bodies are omitted unless callers explicitly request full documents.
 
 ### Tool-Command UX
 
@@ -104,5 +104,3 @@ The local development setup currently runs QMDUI, Open WebUI backend, and Open W
 ## P1 Status
 
 P1 retrieval and RBAC integration are functionally validated.
-
-Security hardening for regular-user source metadata redaction remains a required follow-up before treating the integration as production-safe.

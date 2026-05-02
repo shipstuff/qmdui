@@ -42,12 +42,6 @@ Admin QMD management should move from chat-driven admin tools to clickable Open 
 
 ## Phase 2 Priorities
 
-0. P1 security hardening
-   - Strip generated frontmatter from regular-user `body`, `snippet`, and tool output.
-   - Redact `original_path`, converter logs, source folder paths, and other admin-only metadata unless collection policy explicitly allows source-path exposure.
-   - Keep full metadata visible in admin diagnostics.
-   - Add regression tests proving regular users cannot see hidden source paths through raw retrieval bodies.
-
 1. Native regular-user QMD model
    - Create a `Company Knowledge` pipe/model with admin-configured valves.
    - Allow admins to select the base generation model.
@@ -118,6 +112,8 @@ Open WebUI already has relevant concepts:
 The next phase should use those mechanisms directly instead of relying on users to manually enable tools.
 
 One P1 implementation detail matters for RBAC: Open WebUI's tool `__user__` payload does not include group memberships by default. QMDUI's generated Open WebUI artifacts therefore resolve group memberships inside Open WebUI with `Groups.get_groups_by_member_id(user.id)` and forward both group IDs and group names to QMDUI. Future provisioning/admin UI work should preserve this behavior or replace it with a stronger server-side identity validation flow.
+
+Another P1 implementation detail matters for source privacy: regular-user retrieval strips generated frontmatter and leading generated metadata lines from result text unless collection policy explicitly allows source-path exposure. Future document browser/admin UI work should preserve that boundary by defaulting user-facing views to sanitized text and admin-facing diagnostics to full metadata.
 
 Implementation should inspect and use the Open WebUI APIs backing:
 

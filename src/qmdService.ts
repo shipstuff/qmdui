@@ -154,11 +154,18 @@ export class QmdService {
       }) as QmdSearchResult[];
     }
 
-    return raw
+    const results = await Promise.all(raw
       .filter((item) => (item.score ?? 0) >= minScore)
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       .slice(0, limit)
-      .map((item) => this.normalizeResult(item, auth));
+      .map(async (item) => {
+        if (request.includeFullDocument && !item.body) {
+          item.body = await this.getResultBody(store, item);
+        }
+        return this.normalizeResult(item, auth, Boolean(request.includeFullDocument));
+      }));
+
+    return results;
   }
 
   async expandQuery(query: string, intent?: string): Promise<unknown> {
@@ -186,24 +193,25 @@ export class QmdService {
     };
   }
 
-  private normalizeResult(item: QmdSearchResult, auth: AuthContext): RetrievalResult {
+  private normalizeResult(item: QmdSearchResult, auth: AuthContext, includeFullDocument = false): RetrievalResult {
     const qmdPath = item.displayPath ?? item.file ?? item.filepath ?? "";
     const collection = collectionFromDisplayPath(qmdPath);
     const source = this.sourceMetadata(item.filepath ?? item.file ?? item.displayPath);
-    const originalPath = collection && this.policies.canExposeSourcePath(collection, auth)
-      ? source.originalPath
-      : undefined;
+    const exposeSourcePaths = Boolean(collection && this.policies.canExposeSourcePath(collection, auth));
+    const originalPath = exposeSourcePaths ? source.originalPath : undefined;
     const title = item.title || basename(qmdPath) || "Untitled";
+    const snippet = sanitizeResultText(item.snippet ?? item.bestChunk, exposeSourcePaths);
+    const body = includeFullDocument ? sanitizeResultText(item.body, exposeSourcePaths) : undefined;
     return {
       docid: item.docid ? `#${String(item.docid).replace(/^#/, "")}` : undefined,
       score: Number(item.score ?? 0),
       title,
       qmdPath,
       originalPath,
-      context: item.context,
+      context: sanitizeResultText(item.context, exposeSourcePaths),
       line: item.line,
-      snippet: item.snippet ?? item.bestChunk,
-      body: item.body,
+      snippet,
+      body,
       citation: {
         docid: item.docid ? `#${String(item.docid).replace(/^#/, "")}` : undefined,
         title,
@@ -228,9 +236,43 @@ export class QmdService {
       return {};
     }
   }
+
+  private async getResultBody(store: QMDStore, item: QmdSearchResult): Promise<string | undefined> {
+    const pathOrDocid = item.displayPath ?? item.file ?? item.filepath ?? item.docid;
+    if (!pathOrDocid) return undefined;
+    try {
+      return await store.getDocumentBody(pathOrDocid) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  }
 }
 
 function collectionFromDisplayPath(path: string): string | undefined {
   const clean = path.startsWith("qmd://") ? path.slice("qmd://".length) : path;
   return clean.split("/").filter(Boolean)[0];
+}
+
+function sanitizeResultText(text: string | null | undefined, exposeSourcePaths: boolean): string | undefined {
+  if (text == null) return undefined;
+  if (exposeSourcePaths) return text;
+
+  const withoutFrontmatter = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+  const lines = withoutFrontmatter.split(/\r?\n/);
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index].trim();
+    if (line === "" || isGeneratedMetadataLine(line)) {
+      index += 1;
+      continue;
+    }
+    break;
+  }
+
+  return lines.slice(index).join("\n").trimStart();
+}
+
+function isGeneratedMetadataLine(line: string): boolean {
+  return /^(source_collection|original_path|original_relative_path|source_extension|source_mime_type|source_modified_time|source_mtime|converted_at|conversion_time|converter|content_hash):\s*/.test(line);
 }

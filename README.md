@@ -18,8 +18,7 @@ P1 retrieval and access-control integration has been validated locally:
 - QMD collection access is enforced server-side using Open WebUI role/group identity
 - Quick, Semantic, and Deep retrieval modes return expected results for the smoke collection
 - embeddings complete successfully and the vector index is detected
-
-One security hardening item remains before broader use: regular-user retrieval responses must strip generated frontmatter/source metadata from returned bodies and snippets when source paths are not allowed by policy.
+- regular-user retrieval responses strip generated frontmatter/source metadata from returned bodies and snippets when source paths are not allowed by policy
 
 ## Run
 
