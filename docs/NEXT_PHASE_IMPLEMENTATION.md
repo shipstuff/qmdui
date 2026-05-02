@@ -56,21 +56,29 @@ Admin QMD management should move from chat-driven admin tools to clickable Open 
    - Set `DEFAULT_MODELS` so all new chats can default to the QMD-backed model when requested.
    - Optionally set pinned models so `Company Knowledge` is visible in the model picker/sidebar.
    - Keep admin diagnostic tools admin-only and avoid exposing them to regular users.
+   - Add an initial-run bootstrap path for fresh environments that creates the expected Open WebUI user groups, admin/user role assumptions, QMD tools, QMD functions/pipes, `Company Knowledge` model, model access grants, and default/pinned model settings.
+   - Prefer Open WebUI APIs for bootstrapping. If SQL seeding is needed, keep it version-aware, idempotent, and limited to Open WebUI's known schema for groups, tools, functions, models, access grants, and config rows.
 
-3. Clickable admin UI inside Open WebUI
+3. CI and PR checks
+   - Add GitHub Actions for pull requests.
+   - Run `npm ci`, `npm run build`, and `npm test`.
+   - Add a generated-artifact syntax check for `tool.py`, `pipe.py`, and `admin_tools.py`.
+   - Keep CI fast enough for normal PR iteration and make it produce green checks before merging.
+
+4. Clickable admin UI inside Open WebUI
    - Add a small Open WebUI integration patch for QMD admin pages.
    - Target route: `/admin/qmd`.
    - Add admin navigation entry: `QMD`.
    - Use Open WebUI's existing admin layout, spacing, tables, modals, buttons, dark/light mode, and toast patterns.
    - Keep QMDUI backend as a separate service; the Open WebUI page should call QMDUI APIs.
 
-4. Admin dashboard page
+5. Admin dashboard page
    - Show QMD health: total docs, embeddings pending, vector index status, stale age.
    - Show collection count and recent update/embed job status.
    - Show Open WebUI integration status: QMD pipe imported, retrieval tool imported, default model configured.
    - Show warnings for missing embeddings, inaccessible QMDUI backend, or missing QMD collections.
 
-5. Collection management page
+6. Collection management page
    - List collections with name, source path, generated path, pattern, doc count, include-by-default state, and access policy.
    - Add collection from folder path.
    - Preview ingestion before conversion.
@@ -80,19 +88,19 @@ Admin QMD management should move from chat-driven admin tools to clickable Open 
    - Rename/remove collection references.
    - Make source-file deletion guardrails visible: QMDUI never deletes, renames, moves, overwrites, or modifies source files.
 
-6. Access policy page
+7. Access policy page
    - Map QMD collections to Open WebUI groups/users.
    - Support all-users, admin-only, specific groups, and specific users.
    - Configure whether source paths can be exposed in citations.
    - Provide a test panel that evaluates a selected user/group against selected collections.
 
-7. Contexts and retrieval diagnostics
+8. Contexts and retrieval diagnostics
    - Add global context and collection/path context controls.
    - Add admin-only Quick/Semantic/Deep retrieval test panels.
    - Keep explicit mode buttons admin-only.
    - Keep regular-user chat free of mode selection unless an admin intentionally exposes it.
 
-8. Job/log UI
+9. Job/log UI
    - Show update, embed, ingestion, and conversion jobs.
    - Show status, progress, timestamps, and logs.
    - Provide polling first; SSE can follow.
@@ -124,8 +132,27 @@ Implementation should inspect and use the Open WebUI APIs backing:
 - Model metadata `toolIds`.
 - Default model configuration.
 - Group/user permissions.
+- Open WebUI bootstrap state for groups, access grants, tools, functions, models, and config defaults.
 
 If Open WebUI lacks a stable public API for one of these actions, prefer a small, well-isolated integration patch over broad forking.
+
+## Fresh Environment Bootstrap
+
+A fresh local or deployed environment should not require manual recreation of the P1 test setup. The bootstrap path should be able to create or update:
+
+- expected groups, including a default company knowledge group such as `qa` or a deployment-configured company group
+- admin/user role assumptions needed by the QMD admin and regular-user flows
+- `QMD Retrieve` Workspace Tool
+- `QMD Admin Tools` Workspace Tool, restricted to admins
+- `QMD Assistant` Function/Pipe
+- a regular-user-facing `Company Knowledge` model with QMD retrieval attached
+- access grants mapping `Company Knowledge` and `QMD Retrieve` to the intended users/groups
+- default and pinned model settings when enabled by deployment config
+- QMDUI collection access policy defaults that align with the Open WebUI groups created by bootstrap
+
+The bootstrap process must be idempotent: rerunning it should update known QMDUI-managed records without duplicating tools, functions, models, groups, or access grants.
+
+If direct SQL is used, it should be kept in explicit migration/seed files with comments that name the Open WebUI version/schema assumptions. Prefer stable identifiers for QMDUI-managed records so updates are deterministic.
 
 ## Security Rules
 
@@ -148,3 +175,5 @@ If Open WebUI lacks a stable public API for one of these actions, prefer a small
 - A regular user without collection access receives no leaked content.
 - Admins can manage dashboard, collections, ingestion, embeddings, contexts, jobs, and policies through clickable Open WebUI admin pages.
 - Chat-driven admin tools remain available only as diagnostics or fallback, not as the primary admin UX.
+- Fresh environments can be bootstrapped with the required Open WebUI groups, tools, functions/pipes, models, access grants, and default model settings without manual setup.
+- Pull requests run GitHub Actions checks for install, build, tests, and generated Open WebUI Python artifact syntax.
