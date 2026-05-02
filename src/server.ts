@@ -127,6 +127,13 @@ app.get("/api/admin/runtime", requireAdmin, (_req, res) => {
     qmdIndexName: config.qmdIndexName,
     qmdDbPath: config.qmdDbPath,
     qmdConfigPath: config.qmdConfigPath,
+    embedProvider: config.embedProvider,
+    embedTimeoutMs: config.embedTimeoutMs,
+    embedRequireComplete: config.embedRequireComplete,
+    embedFailOnErrors: config.embedFailOnErrors,
+    ollamaBaseUrl: config.ollamaBaseUrl,
+    ollamaEmbedModel: config.ollamaEmbedModel,
+    ollamaBatchSize: config.ollamaBatchSize,
     tokenEnabled: Boolean(config.apiToken),
     seedCollection: seed.collection,
     seedSourceRoot: seed.sourceRoot,
@@ -409,12 +416,25 @@ app.post("/api/jobs/embed", requireAdmin, async (req, res, next) => {
   try {
     const input = z.object({
       force: z.boolean().optional(),
+      provider: z.enum(["qmd", "ollama"]).optional(),
+      model: z.string().min(1).optional(),
       maxDocsPerBatch: z.number().int().positive().optional(),
       maxBatchBytes: z.number().int().positive().optional(),
+      requireComplete: z.boolean().optional(),
+      failOnErrors: z.boolean().optional(),
     }).parse(req.body);
     const job = jobs.start("qmd.embed", async (context) => {
-      context.log("Embedding documents");
-      return qmd.embed(input);
+      context.log(`Embedding documents via ${input.provider ?? config.embedProvider}`);
+      const result = await qmd.embed({
+        ...input,
+        onProgress: (info) => {
+          if (info.totalBytes > 0) {
+            context.progress(Math.min(99, Math.round((info.bytesProcessed / info.totalBytes) * 100)));
+          }
+        },
+      });
+      context.progress(100);
+      return result;
     });
     res.status(202).json({ job });
   } catch (error) {

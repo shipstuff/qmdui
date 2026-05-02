@@ -499,9 +499,28 @@ class Tools:
         """Admin-only: start a QMD update job."""
         return await self._request("POST", "/api/jobs/update", __user__, {"collections": collections}, timeout=60)
 
-    async def qmd_embed_documents(self, force: bool = False, __user__: Optional[dict] = None) -> dict:
-        """Admin-only: start a QMD embedding job."""
-        return await self._request("POST", "/api/jobs/embed", __user__, {"force": force}, timeout=60)
+    async def qmd_embed_documents(
+        self,
+        force: bool = False,
+        provider: Optional[Literal["qmd", "ollama"]] = None,
+        model: Optional[str] = None,
+        max_docs_per_batch: Optional[int] = None,
+        max_batch_bytes: Optional[int] = None,
+        require_complete: bool = True,
+        fail_on_errors: bool = True,
+        __user__: Optional[dict] = None,
+    ) -> dict:
+        """Admin-only: start a QMD embedding job. Use provider='ollama' to embed through the configured remote Ollama endpoint."""
+        payload = {
+            "force": force,
+            "provider": provider,
+            "model": model,
+            "maxDocsPerBatch": max_docs_per_batch,
+            "maxBatchBytes": max_batch_bytes,
+            "requireComplete": require_complete,
+            "failOnErrors": fail_on_errors,
+        }
+        return await self._request("POST", "/api/jobs/embed", __user__, payload, timeout=60)
 
     async def qmd_jobs(self, __user__: Optional[dict] = None) -> dict:
         """Admin-only: list QMDUI jobs."""

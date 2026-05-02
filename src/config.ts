@@ -14,6 +14,13 @@ export type AppConfig = {
   qmdIndexName: string;
   qmdDbPath: string;
   qmdConfigPath: string;
+  embedProvider: "qmd" | "ollama";
+  embedTimeoutMs: number;
+  embedRequireComplete: boolean;
+  embedFailOnErrors: boolean;
+  ollamaBaseUrl: string;
+  ollamaEmbedModel: string;
+  ollamaBatchSize: number;
 };
 
 function defaultQmdConfigPath(indexName: string): string {
@@ -53,6 +60,13 @@ export function getConfig(): AppConfig {
     qmdIndexName,
     qmdDbPath,
     qmdConfigPath,
+    embedProvider: envChoice(process.env.QMDUI_EMBED_PROVIDER, ["qmd", "ollama"], "qmd"),
+    embedTimeoutMs: numberEnv(process.env.QMDUI_EMBED_TIMEOUT_MS, 10 * 60 * 1000),
+    embedRequireComplete: boolEnv(process.env.QMDUI_EMBED_REQUIRE_COMPLETE, true),
+    embedFailOnErrors: boolEnv(process.env.QMDUI_EMBED_FAIL_ON_ERRORS, true),
+    ollamaBaseUrl: process.env.QMDUI_OLLAMA_BASE_URL ?? "http://exo-master:52415/ollama",
+    ollamaEmbedModel: process.env.QMDUI_OLLAMA_EMBED_MODEL ?? "mlx-community/Qwen3-Embedding-8B-4bit-DWQ",
+    ollamaBatchSize: numberEnv(process.env.QMDUI_OLLAMA_BATCH_SIZE, 16),
   };
 }
 
@@ -60,4 +74,18 @@ export function ensureDataDirs(config: AppConfig): void {
   for (const path of [config.dataDir, config.generatedDir, config.manifestDir, dirname(config.qmdDbPath), dirname(config.qmdConfigPath)]) {
     if (!existsSync(path)) mkdirSync(path, { recursive: true });
   }
+}
+
+function boolEnv(value: string | undefined, fallback: boolean): boolean {
+  if (value == null || value === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
+function numberEnv(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function envChoice<T extends string>(value: string | undefined, choices: readonly T[], fallback: T): T {
+  return choices.includes(value as T) ? value as T : fallback;
 }

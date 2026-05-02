@@ -341,8 +341,12 @@ export function buildOpenApi(config: AppConfig) {
             type: "object",
             properties: {
               force: { type: "boolean" },
+              provider: { type: "string", enum: ["qmd", "ollama"] },
+              model: { type: "string" },
               maxDocsPerBatch: { type: "integer" },
               maxBatchBytes: { type: "integer" },
+              requireComplete: { type: "boolean" },
+              failOnErrors: { type: "boolean" },
             },
           }),
           responses: { "202": { description: "Job accepted." } },

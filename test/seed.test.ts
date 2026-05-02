@@ -21,6 +21,13 @@ function makeConfig(): AppConfig {
     qmdIndexName: "index",
     qmdDbPath: join(dir, "index.sqlite"),
     qmdConfigPath: join(dir, "index.yml"),
+    embedProvider: "qmd",
+    embedTimeoutMs: 600000,
+    embedRequireComplete: true,
+    embedFailOnErrors: true,
+    ollamaBaseUrl: "http://exo-master:52415/ollama",
+    ollamaEmbedModel: "mlx-community/Qwen3-Embedding-8B-4bit-DWQ",
+    ollamaBatchSize: 16,
   };
 }
 

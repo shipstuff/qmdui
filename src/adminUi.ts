@@ -437,6 +437,9 @@ export function adminUiHtml(): string {
           ["Index", runtime.qmdIndexName],
           ["DB", runtime.qmdDbPath],
           ["Config", runtime.qmdConfigPath],
+          ["Embedding", runtime.embedProvider],
+          ["Ollama", runtime.ollamaBaseUrl],
+          ["Embed Model", runtime.ollamaEmbedModel],
           ["Data", runtime.dataDir],
           ["Seed", runtime.seedSourceRoot]
         ];
