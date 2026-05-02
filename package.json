@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "test": "vitest run",
+    "check:artifacts": "node scripts/check-openwebui-artifacts.mjs",
     "check:openwebui": "node scripts/check-openwebui.mjs",
     "import:openwebui": "node scripts/import-openwebui-artifacts.mjs",
     "openwebui:backend": "bash scripts/openwebui-backend.sh",
