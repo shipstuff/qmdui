@@ -125,6 +125,40 @@ This imports:
 - Tool `qmd_admin_tools`
 - Function/Pipe `qmd_assistant`
 
+For a fresh environment, prefer the bootstrap script:
+
+```bash
+OPEN_WEBUI_API_KEY=your-open-webui-admin-token npm run bootstrap:openwebui
+```
+
+This is idempotent and provisions the expected P1 setup:
+
+- group `qa` by default
+- Tool `qmd_retrieve`, granted to the company group
+- Tool `qmd_admin_tools`, kept admin-only
+- Function/Pipe `qmd_assistant`, activated and made global
+- model `company-knowledge` with display name `Company Knowledge`
+- model access for the company group
+- default/pinned model settings for `Company Knowledge`
+
+Useful overrides:
+
+```bash
+OPEN_WEBUI_BASE_URL=http://127.0.0.1:8080 \
+QMDUI_BASE_URL=http://127.0.0.1:8765 \
+OPEN_WEBUI_API_KEY=your-open-webui-admin-token \
+QMDUI_API_TOKEN=optional-qmdui-token \
+QMDUI_COMPANY_GROUP=qa \
+QMDUI_COMPANY_MODEL_ID=company-knowledge \
+QMDUI_COMPANY_MODEL_NAME="Company Knowledge" \
+QMDUI_RETRIEVAL_MODE=deep \
+QMDUI_SET_DEFAULT_MODEL=true \
+QMDUI_SET_PINNED_MODEL=true \
+npm run bootstrap:openwebui
+```
+
+The bootstrap uses Open WebUI admin APIs instead of direct database writes. That keeps Open WebUI's tool/function validation and in-memory registries in sync. Direct SQL seeding should remain a fallback for deployments where the API path is unavailable and must be version/schema-aware.
+
 Admin functions rely on Open WebUI passing user context. QMDUI also enforces admin checks on the backend using:
 
 - `x-open-webui-role`

@@ -37,3 +37,6 @@ jobs:
 
       - name: Check generated Open WebUI artifacts
         run: npm run check:artifacts
+
+      - name: Check Open WebUI bootstrap script
+        run: npm run check:bootstrap

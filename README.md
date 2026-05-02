@@ -36,6 +36,31 @@ Generated Open WebUI artifacts are served from:
 - `GET /api/openwebui/admin_tools.py`
 - `GET /api/openapi.json`
 
+Fresh Open WebUI environments can be provisioned after the first admin account exists:
+
+1. Sign in to Open WebUI as an admin.
+2. Enable API keys if needed: `Admin Panel -> Settings -> General -> Enable API Keys`.
+3. Create an admin API key: profile/avatar menu -> `Settings` -> `Account` -> `API Key` -> `Create new secret key`.
+4. Run the bootstrap:
+
+```bash
+OPEN_WEBUI_API_KEY=your-open-webui-admin-key npm run bootstrap:openwebui
+```
+
+The bootstrap creates or updates the default QMDUI group, retrieval/admin tools, assistant pipe, `Company Knowledge` model, model/tool access grants, and default/pinned model settings.
+
+Useful bootstrap overrides:
+
+```bash
+OPEN_WEBUI_BASE_URL=http://127.0.0.1:8080 \
+QMDUI_BASE_URL=http://127.0.0.1:8765 \
+OPEN_WEBUI_API_KEY=your-open-webui-admin-key \
+QMDUI_API_TOKEN=optional-qmdui-token \
+QMDUI_COMPANY_GROUP=qa \
+QMDUI_RETRIEVAL_MODE=deep \
+npm run bootstrap:openwebui
+```
+
 Check the two-service integration:
 
 ```bash
