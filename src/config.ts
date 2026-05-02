@@ -64,8 +64,8 @@ export function getConfig(): AppConfig {
     embedTimeoutMs: numberEnv(process.env.QMDUI_EMBED_TIMEOUT_MS, 10 * 60 * 1000),
     embedRequireComplete: boolEnv(process.env.QMDUI_EMBED_REQUIRE_COMPLETE, true),
     embedFailOnErrors: boolEnv(process.env.QMDUI_EMBED_FAIL_ON_ERRORS, true),
-    ollamaBaseUrl: process.env.QMDUI_OLLAMA_BASE_URL ?? "http://exo-master:52415/ollama",
-    ollamaEmbedModel: process.env.QMDUI_OLLAMA_EMBED_MODEL ?? "mlx-community/Qwen3-Embedding-8B-4bit-DWQ",
+    ollamaBaseUrl: process.env.QMDUI_OLLAMA_BASE_URL ?? "http://ollama-mini-01:11434",
+    ollamaEmbedModel: process.env.QMDUI_OLLAMA_EMBED_MODEL ?? "qwen3-embedding:8b",
     ollamaBatchSize: numberEnv(process.env.QMDUI_OLLAMA_BATCH_SIZE, 16),
   };
 }

@@ -18,8 +18,8 @@ function makeConfig(): AppConfig {
     embedTimeoutMs: 600000,
     embedRequireComplete: true,
     embedFailOnErrors: true,
-    ollamaBaseUrl: "http://exo-master:52415/ollama",
-    ollamaEmbedModel: "mlx-community/Qwen3-Embedding-8B-4bit-DWQ",
+    ollamaBaseUrl: "http://ollama-mini-01:11434",
+    ollamaEmbedModel: "qwen3-embedding:8b",
     ollamaBatchSize: 16,
   };
 }
@@ -40,7 +40,7 @@ describe("OllamaEmbeddingClient", () => {
     const embedding = await client.embedQuery("deployment checklist");
 
     expect(embedding).toEqual([0.1, 0.2, 0.3]);
-    expect(requests[0].url).toBe("http://exo-master:52415/ollama/api/embed");
+    expect(requests[0].url).toBe("http://ollama-mini-01:11434/api/embed");
     expect(requests[0].body.input[0]).toContain("Instruct: Retrieve relevant documents");
   });
 
@@ -59,9 +59,9 @@ describe("OllamaEmbeddingClient", () => {
 
     expect(embedding).toEqual([1, 2, 3]);
     expect(urls).toEqual([
-      "http://exo-master:52415/ollama/api/embed",
-      "http://exo-master:52415/ollama/api/embeddings",
-      "http://exo-master:52415/v1/embeddings",
+      "http://ollama-mini-01:11434/api/embed",
+      "http://ollama-mini-01:11434/api/embeddings",
+      "http://ollama-mini-01:11434/v1/embeddings",
     ]);
   });
 });

@@ -25,8 +25,8 @@ function config(): AppConfig {
     embedTimeoutMs: 600000,
     embedRequireComplete: true,
     embedFailOnErrors: true,
-    ollamaBaseUrl: "http://exo-master:52415/ollama",
-    ollamaEmbedModel: "mlx-community/Qwen3-Embedding-8B-4bit-DWQ",
+    ollamaBaseUrl: "http://ollama-mini-01:11434",
+    ollamaEmbedModel: "qwen3-embedding:8b",
     ollamaBatchSize: 16,
   };
 }
