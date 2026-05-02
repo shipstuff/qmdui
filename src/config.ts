@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 export type AppConfig = {
   host: string;
@@ -57,7 +57,7 @@ export function getConfig(): AppConfig {
 }
 
 export function ensureDataDirs(config: AppConfig): void {
-  for (const path of [config.dataDir, config.generatedDir, config.manifestDir, resolve(config.qmdDbPath, "..")]) {
+  for (const path of [config.dataDir, config.generatedDir, config.manifestDir, dirname(config.qmdDbPath), dirname(config.qmdConfigPath)]) {
     if (!existsSync(path)) mkdirSync(path, { recursive: true });
   }
 }

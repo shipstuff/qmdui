@@ -1,0 +1,73 @@
+name: Docker Build & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "test/**"
+      - "deploy/**"
+      - "docs/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "AGENTS.md"
+      - ".github/workflows/deploy.yml"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit SHA to build and deploy (leave empty for branch HEAD)"
+        required: false
+
+concurrency:
+  group: qmdui-deploy-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: registry.local:30500
+  IMAGE: registry.local:30500/shipstuff/qmdui
+
+jobs:
+  build-and-push:
+    runs-on: shipstuff-runners
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit || github.sha }}
+
+      - name: Set image tags
+        run: |
+          SHA="${{ github.event.inputs.commit || github.sha }}"
+          echo "SHA=${SHA}" >> "$GITHUB_ENV"
+          echo "IMAGE_SHA=${{ env.IMAGE }}:${SHA}" >> "$GITHUB_ENV"
+          echo "IMAGE_LATEST=${{ env.IMAGE }}:latest" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          docker build \
+            --file Dockerfile \
+            --tag "$IMAGE_SHA" \
+            --tag "$IMAGE_LATEST" \
+            .
+
+      - name: Push
+        run: |
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
+
+  deploy:
+    runs-on: shipstuff-runners
+    needs: build-and-push
+    env:
+      COMMIT_SHA: ${{ github.event.inputs.commit || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit || github.sha }}
+
+      - name: Apply manifests and rollout
+        run: ./deploy/deploy.sh

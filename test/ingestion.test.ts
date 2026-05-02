@@ -75,4 +75,29 @@ describe("IngestionService", () => {
     expect(existsSync(stalePath)).toBe(true);
     expect(manifest?.entries.find((entry) => entry.relativePath === "old.txt")?.stale).toBe(true);
   });
+
+  it("can include normally ignored paths and flatten generated output for seed indexing", async () => {
+    const config = makeConfig();
+    const source = join(config.rootDir, "source");
+    mkdirSync(join(source, "plugin-runtime-deps", "node_modules", "pkg"), { recursive: true });
+    const sourceFile = join(source, "plugin-runtime-deps", "node_modules", "pkg", "README.md");
+    writeFileSync(sourceFile, "# Package docs");
+
+    const service = new IngestionService(config);
+    const result = await service.ingest({
+      collection: "docs",
+      sourceRoot: source,
+      pattern: "**/*.md",
+      includeHidden: true,
+      useDefaultIgnore: false,
+      flattenOutput: true,
+      cleanOutput: true,
+    });
+    const manifest = service.readManifest("docs");
+
+    expect(result.converted).toBe(1);
+    expect(manifest?.entries[0]?.relativePath).toBe("plugin-runtime-deps/node_modules/pkg/README.md");
+    expect(manifest?.entries[0]?.outputPath).not.toContain("node_modules");
+    expect(existsSync(manifest?.entries[0]?.outputPath ?? "")).toBe(true);
+  });
 });

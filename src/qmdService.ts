@@ -53,6 +53,11 @@ export class QmdService {
     this.storePromise = null;
   }
 
+  async reload(): Promise<void> {
+    await this.close();
+    await this.getStore();
+  }
+
   async status(): Promise<unknown> {
     const store = await this.getStore();
     return store.getStatus();

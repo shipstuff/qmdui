@@ -31,10 +31,13 @@ The API defaults to `http://127.0.0.1:8765`.
 
 Generated Open WebUI artifacts are served from:
 
+- `GET /admin`
 - `GET /api/openwebui/tool.py`
 - `GET /api/openwebui/pipe.py`
 - `GET /api/openwebui/admin_tools.py`
 - `GET /api/openapi.json`
+
+The built-in admin UI at `/admin` can manage QMD collections, run update/embed/seed jobs, edit the active QMD YAML config, and test retrieval. Admin API calls require `x-open-webui-role: admin`; if `QMDUI_API_TOKEN` is set, enter the same token in the admin UI.
 
 Fresh Open WebUI environments can be provisioned after the first admin account exists:
 
@@ -108,3 +111,19 @@ If `QMDUI_API_TOKEN` is set, requests must include `Authorization: Bearer <token
 - [Open WebUI setup](docs/OPENWEBUI_SETUP.md)
 - [P1 test report](docs/P1_TEST_REPORT.md)
 - [Next phase implementation plan](docs/NEXT_PHASE_IMPLEMENTATION.md)
+
+## Kubernetes
+
+QMDUI deploys into the existing `open-webui` namespace with ingress host `qmdui.local`:
+
+```bash
+./deploy/deploy.sh
+```
+
+GitHub Actions builds `registry.local:30500/shipstuff/qmdui` and runs the deploy on `shipstuff-runners` after merges to `main`.
+
+The OpenClaw seed source in Kubernetes is `/data/seeds/openclaw`. From a machine that can read `/home/carl/.openclaw`, populate it and trigger the seed job with:
+
+```bash
+scripts/seed-openclaw-k8s.sh
+```

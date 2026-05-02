@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import fastGlob from "fast-glob";
@@ -12,6 +12,10 @@ type IngestOptions = {
   sourceRoot: string;
   pattern?: string;
   ignore?: string[];
+  includeHidden?: boolean;
+  useDefaultIgnore?: boolean;
+  flattenOutput?: boolean;
+  cleanOutput?: boolean;
   onLog?: (message: string) => void;
   onProgress?: (value: number) => void;
 };
@@ -86,10 +90,16 @@ export class IngestionService {
   async ingest(options: IngestOptions): Promise<IngestResult> {
     const sourceRoot = resolve(options.sourceRoot);
     const generatedRoot = this.generatedRoot(options.collection);
+    if (options.cleanOutput) {
+      rmSync(generatedRoot, { recursive: true, force: true });
+    }
     mkdirSync(generatedRoot, { recursive: true });
     mkdirSync(this.config.manifestDir, { recursive: true });
 
-    const files = await this.discover(sourceRoot, options.pattern, options.ignore);
+    const files = await this.discover(sourceRoot, options.pattern, options.ignore, {
+      includeHidden: options.includeHidden,
+      useDefaultIgnore: options.useDefaultIgnore,
+    });
 
     const oldManifest = this.readManifest(options.collection);
     const oldEntries = new Map(oldManifest?.entries.map((entry) => [entry.relativePath, entry]) ?? []);
@@ -103,7 +113,9 @@ export class IngestionService {
       const relativePath = files[index]!;
       seen.add(relativePath);
       const sourcePath = resolve(sourceRoot, relativePath);
-      const outputPath = join(generatedRoot, `${relativePath}.md`);
+      const outputPath = options.flattenOutput
+        ? join(generatedRoot, flattenOutputName(relativePath))
+        : join(generatedRoot, `${relativePath}.md`);
       const stat = statSync(sourcePath);
       const sourceHash = hashFile(sourcePath);
       const previous = oldEntries.get(relativePath);
@@ -224,17 +236,25 @@ export class IngestionService {
     };
   }
 
-  private async discover(sourceRoot: string, pattern = "**/*", ignore: string[] = []): Promise<string[]> {
+  private async discover(
+    sourceRoot: string,
+    pattern = "**/*",
+    ignore: string[] = [],
+    options: { includeHidden?: boolean; useDefaultIgnore?: boolean } = {},
+  ): Promise<string[]> {
+    const defaultIgnore = options.useDefaultIgnore === false ? [] : [
+      "**/.git/**",
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+    ];
     return fastGlob(pattern, {
       cwd: sourceRoot,
       onlyFiles: true,
-      dot: false,
+      dot: Boolean(options.includeHidden),
       followSymbolicLinks: false,
       ignore: [
-        "**/.git/**",
-        "**/node_modules/**",
-        "**/dist/**",
-        "**/build/**",
+        ...defaultIgnore,
         ...ignore,
       ],
     });
@@ -243,6 +263,17 @@ export class IngestionService {
 
 function hashFile(path: string): string {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function flattenOutputName(relativePath: string): string {
+  const digest = createHash("sha256").update(relativePath).digest("hex").slice(0, 16);
+  const slug = relativePath
+    .replace(/\\/g, "/")
+    .replace(/[^A-Za-z0-9._-]+/g, "_")
+    .replace(/node_modules/g, "node-modules")
+    .replace(/^_+|_+$/g, "")
+    .slice(-180) || "document";
+  return `${digest}-${slug}.md`;
 }
 
 async function convertFile(path: string, pipeline: string): Promise<string> {

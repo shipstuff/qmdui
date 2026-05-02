@@ -9,6 +9,9 @@ import { IngestionService } from "./ingestion/IngestionService.js";
 import { JobRunner } from "./jobs.js";
 import { buildOpenApi } from "./openapi.js";
 import { openWebUiAdminTools, openWebUiPipe, openWebUiRetrievalTool } from "./openwebui/artifacts.js";
+import { adminUiHtml } from "./adminUi.js";
+import { readQmdConfig, writeQmdConfig } from "./qmdConfig.js";
+import { seedConfiguredCollection, seedOptionsFromEnv } from "./seed.js";
 import type { CollectionAccessPolicy, RetrievalMode } from "./types.js";
 
 const config = getConfig();
@@ -22,7 +25,6 @@ const jobs = new JobRunner();
 
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
-app.use(requireToken(config));
 
 const retrieveSchema = z.object({
   query: z.string().min(1),
@@ -76,6 +78,7 @@ app.get("/", (_req, res) => {
       <h1>QMDUI API</h1>
       <p>QMDUI is running. This v1 server is API-first for Open WebUI Tools, Pipes, and admin Functions.</p>
       <ul>
+        <li><a href="/admin">Admin</a></li>
         <li><a href="/health">Health</a></li>
         <li><a href="/api/openapi.json">OpenAPI spec</a></li>
         <li><a href="/api/openwebui/tool.py">Open WebUI retrieval Tool</a></li>
@@ -86,6 +89,10 @@ app.get("/", (_req, res) => {
     </main>
   </body>
 </html>`);
+});
+
+app.get("/admin", (_req, res) => {
+  res.type("html").send(adminUiHtml());
 });
 
 app.get("/api/openapi.json", (_req, res) => {
@@ -102,6 +109,95 @@ app.get("/api/openwebui/pipe.py", (_req, res) => {
 
 app.get("/api/openwebui/admin_tools.py", (_req, res) => {
   res.type("text/x-python").send(openWebUiAdminTools(config));
+});
+
+app.use(requireToken(config));
+
+app.get("/api/admin/runtime", requireAdmin, (_req, res) => {
+  const seed = seedOptionsFromEnv();
+  res.json({
+    service: "qmdui",
+    host: config.host,
+    port: config.port,
+    rootDir: config.rootDir,
+    dataDir: config.dataDir,
+    generatedDir: config.generatedDir,
+    manifestDir: config.manifestDir,
+    policyPath: config.policyPath,
+    qmdIndexName: config.qmdIndexName,
+    qmdDbPath: config.qmdDbPath,
+    qmdConfigPath: config.qmdConfigPath,
+    tokenEnabled: Boolean(config.apiToken),
+    seedCollection: seed.collection,
+    seedSourceRoot: seed.sourceRoot,
+    seedPattern: seed.pattern,
+    seedAccessMode: seed.accessMode,
+  });
+});
+
+app.get("/api/admin/qmd-config", requireAdmin, (_req, res, next) => {
+  try {
+    res.json(readQmdConfig(config));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/admin/qmd-config", requireAdmin, async (req, res, next) => {
+  try {
+    const input = z.object({ content: z.string() }).parse(req.body);
+    const snapshot = writeQmdConfig(config, input.content);
+    await qmd.reload();
+    res.json(snapshot);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/reload", requireAdmin, async (_req, res, next) => {
+  try {
+    await qmd.reload();
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/seed", requireAdmin, async (req, res, next) => {
+  try {
+    const base = seedOptionsFromEnv();
+    const overrides = z.object({
+      collection: z.string().min(1).optional(),
+      sourceRoot: z.string().min(1).optional(),
+      pattern: z.string().min(1).optional(),
+      ignore: z.array(z.string()).optional(),
+      ingest: z.boolean().optional(),
+      includeHidden: z.boolean().optional(),
+      useDefaultIgnore: z.boolean().optional(),
+      flattenOutput: z.boolean().optional(),
+      cleanOutput: z.boolean().optional(),
+      update: z.boolean().optional(),
+      embed: z.boolean().optional(),
+      embedForce: z.boolean().optional(),
+      requireSource: z.boolean().optional(),
+      accessMode: z.enum(["all", "admin", "groups", "users"]).optional(),
+      accessGroups: z.array(z.string()).optional(),
+      accessUsers: z.array(z.string()).optional(),
+      exposeSourcePaths: z.boolean().optional(),
+    }).parse(req.body ?? {});
+    const options = { ...base, ...overrides };
+    const job = jobs.start("seed.openclaw", (context) => seedConfiguredCollection({
+      config,
+      ingestion,
+      qmd,
+      policies,
+      onLog: context.log,
+      onProgress: context.progress,
+    }, options));
+    res.status(202).json({ job });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/api/status", requireAdmin, async (_req, res, next) => {

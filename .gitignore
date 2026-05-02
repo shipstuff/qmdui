@@ -4,3 +4,4 @@ dist/
 .external/
 .env
 npm-debug.log*
+deploy/k8s/secret.yaml

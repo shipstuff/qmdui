@@ -147,6 +147,74 @@ export function buildOpenApi(config: AppConfig) {
           responses: { "200": { description: "QMD dashboard metrics." } },
         },
       },
+      "/api/admin/runtime": {
+        get: {
+          operationId: "qmd_admin_runtime",
+          summary: "QMDUI runtime settings",
+          description: "Admin-only runtime paths, index name, and seed settings.",
+          parameters: identityHeaders(),
+          responses: { "200": { description: "Runtime configuration." } },
+        },
+      },
+      "/api/admin/qmd-config": {
+        get: {
+          operationId: "qmd_admin_get_config",
+          summary: "Read QMD YAML config",
+          description: "Admin-only read access to the active QMD config file.",
+          parameters: identityHeaders(),
+          responses: { "200": { description: "QMD config snapshot." } },
+        },
+        put: {
+          operationId: "qmd_admin_update_config",
+          summary: "Update QMD YAML config",
+          description: "Admin-only update of the active QMD config file followed by a store reload.",
+          parameters: identityHeaders(),
+          requestBody: jsonBody({
+            type: "object",
+            required: ["content"],
+            properties: { content: { type: "string" } },
+          }),
+          responses: { "200": { description: "Updated QMD config snapshot." } },
+        },
+      },
+      "/api/admin/reload": {
+        post: {
+          operationId: "qmd_admin_reload",
+          summary: "Reload QMD store",
+          description: "Admin-only reload of QMD config and SQLite store handles.",
+          parameters: identityHeaders(),
+          responses: { "200": { description: "Reload result." } },
+        },
+      },
+      "/api/admin/seed": {
+        post: {
+          operationId: "qmd_admin_seed",
+          summary: "Seed configured markdown collection",
+          description: "Admin-only job that ingests the configured seed folder, updates the QMD collection, and optionally embeds documents.",
+          parameters: identityHeaders(),
+          requestBody: jsonBody({
+            type: "object",
+            properties: {
+              collection: { type: "string" },
+              sourceRoot: { type: "string" },
+              pattern: { type: "string" },
+              ignore: { type: "array", items: { type: "string" } },
+              ingest: { type: "boolean" },
+              includeHidden: { type: "boolean" },
+              useDefaultIgnore: { type: "boolean" },
+              flattenOutput: { type: "boolean" },
+              cleanOutput: { type: "boolean" },
+              update: { type: "boolean" },
+              embed: { type: "boolean" },
+              accessMode: { type: "string", enum: ["all", "admin", "groups", "users"] },
+              accessGroups: { type: "array", items: { type: "string" } },
+              accessUsers: { type: "array", items: { type: "string" } },
+              exposeSourcePaths: { type: "boolean" },
+            },
+          }),
+          responses: { "202": { description: "Seed job accepted." } },
+        },
+      },
       "/api/collections": {
         get: {
           operationId: "qmd_list_collections",
