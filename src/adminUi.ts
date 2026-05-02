@@ -312,6 +312,7 @@ export function adminUiHtml(): string {
       });
 
       el("policy-collection").addEventListener("change", fillPolicyForm);
+      setInterval(() => { void refreshJobs(); }, 5000);
 
       async function api(path, options) {
         const init = options || {};
@@ -358,6 +359,25 @@ export function adminUiHtml(): string {
         el("qmd-config").value = results[5].content || "";
         renderAll();
         log("Refreshed");
+      }
+
+      let refreshJobsInFlight = false;
+      async function refreshJobs() {
+        if (refreshJobsInFlight) return;
+        refreshJobsInFlight = true;
+        try {
+          const data = await api("/api/jobs");
+          state.jobs = data.jobs || [];
+          renderJobs();
+          if (state.jobs.some((job) => job.status === "queued" || job.status === "running")) {
+            state.dashboard = await api("/api/dashboard");
+            renderMetrics();
+          }
+        } catch {
+          // Manual refresh still surfaces auth/network errors; background polling stays quiet.
+        } finally {
+          refreshJobsInFlight = false;
+        }
       }
 
       async function postAndRefresh(path, body) {
