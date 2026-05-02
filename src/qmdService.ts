@@ -11,6 +11,7 @@ import {
 import type { AccessPolicyStore } from "./accessPolicy.js";
 import type { AppConfig } from "./config.js";
 import { generateOllamaEmbeddings, searchVectorWithOllama } from "./ollamaEmbedding.js";
+import { writeQmdConfigFromCollections } from "./qmdConfig.js";
 import type { AuthContext, RetrievalRequest, RetrievalResult } from "./types.js";
 
 type QmdSearchResult = {
@@ -112,16 +113,21 @@ export class QmdService {
   async addCollection(name: string, path: string, pattern = "**/*.md", ignore?: string[]): Promise<void> {
     const store = await this.getStore();
     await store.addCollection(name, { path, pattern, ignore });
+    await this.writeConfigFromStore(store);
   }
 
   async removeCollection(name: string): Promise<boolean> {
     const store = await this.getStore();
-    return store.removeCollection(name);
+    const removed = await store.removeCollection(name);
+    await this.writeConfigFromStore(store);
+    return removed;
   }
 
   async renameCollection(oldName: string, newName: string): Promise<boolean> {
     const store = await this.getStore();
-    return store.renameCollection(oldName, newName);
+    const renamed = await store.renameCollection(oldName, newName);
+    await this.writeConfigFromStore(store);
+    return renamed;
   }
 
   async update(collections?: string[]): Promise<unknown> {
@@ -247,6 +253,10 @@ export class QmdService {
     if (failures.length > 0) {
       throw new Error(`QMD embedding failed via ${envelope.provider}: ${failures.join("; ")}`);
     }
+  }
+
+  private async writeConfigFromStore(store: QMDStore): Promise<void> {
+    writeQmdConfigFromCollections(this.config, await store.listCollections());
   }
 
   async getDocument(pathOrDocid: string, auth: AuthContext, opts?: { fromLine?: number; maxLines?: number }): Promise<unknown> {

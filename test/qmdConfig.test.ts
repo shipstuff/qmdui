@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AppConfig } from "../src/config.js";
-import { readQmdConfig, writeQmdConfig } from "../src/qmdConfig.js";
+import { readQmdConfig, writeQmdConfig, writeQmdConfigFromCollections } from "../src/qmdConfig.js";
 
 const tempDirs: string[] = [];
 
@@ -44,6 +44,35 @@ describe("QMD config helpers", () => {
 
     expect(snapshot.exists).toBe(false);
     expect(snapshot.content).toContain("collections: {}");
+    expect(snapshot.content).toContain("embed: embeddinggemma");
+  });
+
+  it("uses the active Ollama embedding model in default config", () => {
+    const config = makeConfig();
+    config.embedProvider = "ollama";
+    config.ollamaEmbedModel = "qwen3-embedding:8b";
+
+    const snapshot = readQmdConfig(config);
+
+    expect(snapshot.content).toContain("embed: qwen3-embedding:8b");
+    expect(snapshot.content).not.toContain("embeddinggemma");
+  });
+
+  it("writes configured collections into the QMD YAML file", () => {
+    const config = makeConfig();
+    config.embedProvider = "ollama";
+
+    writeQmdConfigFromCollections(config, [{
+      name: "openclaw",
+      pwd: "/data/qmdui/generated/openclaw",
+      glob_pattern: "**/*.md",
+      includeByDefault: true,
+    }]);
+
+    const content = readFileSync(config.qmdConfigPath, "utf-8");
+    expect(content).toContain("openclaw:");
+    expect(content).toContain("path: /data/qmdui/generated/openclaw");
+    expect(content).toContain("embed: qwen3-embedding:8b");
   });
 
   it("validates and writes YAML config", () => {
