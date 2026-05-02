@@ -135,6 +135,23 @@ export function adminUiHtml(): string {
         padding: 10px;
       }
       .item p { margin: 4px 0 0; color: var(--muted); }
+      .job-progress {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .job-progress progress {
+        width: 100%;
+        height: 10px;
+        accent-color: var(--accent);
+      }
+      .job-progress span {
+        color: var(--muted);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
       .log {
         min-height: 40px;
         max-height: 220px;
@@ -486,8 +503,15 @@ export function adminUiHtml(): string {
         el("jobs").innerHTML = jobs.map((job) => (
           '<div class="item"><div class="split"><b>' + h(job.type) + '</b><span class="' + jobClass(job.status) + '">' + h(job.status) + '</span></div>' +
           '<p>' + h(job.id) + '</p>' +
+          renderJobProgress(job) +
           '<pre class="log">' + h((job.logs || []).slice(-8).join("\\n")) + '</pre></div>'
         )).join("") || '<span class="muted">No jobs yet.</span>';
+      }
+
+      function renderJobProgress(job) {
+        if (job.progress === undefined || job.progress === null) return "";
+        const progress = Math.max(0, Math.min(100, Math.round(Number(job.progress) || 0)));
+        return '<div class="job-progress"><progress max="100" value="' + h(String(progress)) + '"></progress><span>' + h(String(progress)) + '%</span></div>';
       }
 
       function jobClass(status) {
