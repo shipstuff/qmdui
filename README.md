@@ -47,7 +47,7 @@ Fresh Open WebUI environments can be provisioned after the first admin account e
 OPEN_WEBUI_API_KEY=your-open-webui-admin-key npm run bootstrap:openwebui
 ```
 
-The bootstrap creates or updates the default QMDUI group, retrieval/admin tools, assistant pipe, `Company Knowledge` model, model/tool access grants, and default/pinned model settings.
+The bootstrap creates or updates the default QMDUI group, retrieval/admin tools, assistant pipe, regular-user `Company Knowledge` model, admin-only `QMD Admin` model with both QMD tools attached, model/tool access grants, and default/pinned model settings.
 
 Useful bootstrap overrides:
 
@@ -57,6 +57,7 @@ QMDUI_BASE_URL=http://127.0.0.1:8765 \
 OPEN_WEBUI_API_KEY=your-open-webui-admin-key \
 QMDUI_API_TOKEN=optional-qmdui-token \
 QMDUI_COMPANY_GROUP=qa \
+QMDUI_BASE_MODEL=your-open-webui-base-model-id \
 QMDUI_RETRIEVAL_MODE=deep \
 npm run bootstrap:openwebui
 ```

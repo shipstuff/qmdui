@@ -138,6 +138,7 @@ This is idempotent and provisions the expected P1 setup:
 - Tool `qmd_admin_tools`, kept admin-only
 - Function/Pipe `qmd_assistant`, activated and made global
 - model `company-knowledge` with display name `Company Knowledge`
+- model `qmd-admin` with display name `QMD Admin`, scoped to admins by ownership/admin access and configured with both `qmd_retrieve` and `qmd_admin_tools`
 - model access for the company group
 - default/pinned model settings for `Company Knowledge`
 
@@ -151,6 +152,9 @@ QMDUI_API_TOKEN=optional-qmdui-token \
 QMDUI_COMPANY_GROUP=qa \
 QMDUI_COMPANY_MODEL_ID=company-knowledge \
 QMDUI_COMPANY_MODEL_NAME="Company Knowledge" \
+QMDUI_ADMIN_MODEL_ID=qmd-admin \
+QMDUI_ADMIN_MODEL_NAME="QMD Admin" \
+QMDUI_BASE_MODEL=your-open-webui-base-model-id \
 QMDUI_RETRIEVAL_MODE=deep \
 QMDUI_SET_DEFAULT_MODEL=true \
 QMDUI_SET_PINNED_MODEL=true \
