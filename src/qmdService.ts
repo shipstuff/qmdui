@@ -278,7 +278,7 @@ export class QmdService {
       return { error: "not_allowed", message: "Collection access denied" };
     }
 
-    const body = opts ? await store.getDocumentBody(pathOrDocid, opts) : doc.body;
+    const body = sliceBodyLines(doc.body, opts);
     const source = this.sourceMetadata(doc.filepath ?? doc.displayPath);
     const exposeSourcePaths = Boolean(collection && this.policies.canExposeSourcePath(collection, auth));
     return {
@@ -355,6 +355,14 @@ function excerptBody(body: string | undefined, chunkPos: number | undefined, max
   const prefix = start > 0 ? "[...]\n" : "";
   const suffix = start + maxChars < body.length ? "\n[...]" : "";
   return `${prefix}${excerpt}${suffix}`;
+}
+
+function sliceBodyLines(body: string | undefined, opts?: { fromLine?: number; maxLines?: number }): string | undefined {
+  if (!body || !opts || (opts.fromLine == null && opts.maxLines == null)) return body;
+  const lines = body.split(/\r?\n/);
+  const start = Math.max(0, (opts.fromLine ?? 1) - 1);
+  const end = opts.maxLines == null ? lines.length : start + opts.maxLines;
+  return lines.slice(start, end).join("\n");
 }
 
 function collectionFromDisplayPath(path: string): string | undefined {

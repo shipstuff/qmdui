@@ -87,6 +87,7 @@ Use these checks when changing deployment, retrieval, embeddings, or Open WebUI 
 - Deep/vector retrieval returned body internally but normalized results omitted content when `includeFullDocument=false` and `snippet` was empty. Normalize vector results into safe excerpts so the model receives actual text.
 - `qmd_get_document` was only exposed in admin tools. Regular retrieval tools now include a read-only document fetcher so the LLM can read a retrieved file by `qmdPath` or docid.
 - Open WebUI tool calls sent Python `None` as JSON `null` for optional line fields; `/api/documents/get` now accepts null/omitted values and the generated tools omit unset line options.
+- QMD document reads with line limits can resolve metadata but return no body for some generated `qmdPath` values if delegated to QMD's `getDocumentBody`; QMDUI slices the already-loaded document body instead.
 - Generated frontmatter leaked into content for source-path-exposed users. Returned model-visible content should strip QMDUI frontmatter; expose original paths as structured metadata only.
 
 ## Editing Rules
