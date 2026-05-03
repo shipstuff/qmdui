@@ -379,8 +379,6 @@ function mergeSearchResults(results: QmdSearchResult[]): QmdSearchResult[] {
 
 function sanitizeResultText(text: string | null | undefined, exposeSourcePaths: boolean): string | undefined {
   if (text == null) return undefined;
-  if (exposeSourcePaths) return text;
-
   const withoutFrontmatter = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
   const lines = withoutFrontmatter.split(/\r?\n/);
   let index = 0;

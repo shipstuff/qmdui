@@ -125,7 +125,7 @@ describe("QmdService retrieval normalization", () => {
     expect(results[0].body).not.toContain("/private/source/note.md");
   });
 
-  it("preserves original path metadata when policy allows source path exposure", async () => {
+  it("preserves original path metadata separately from model-visible content", async () => {
     const config = makeConfig();
     const policies = new AccessPolicyStore(config);
     policies.set("docs", { collection: "docs", mode: "all", groups: [], users: [], exposeSourcePaths: true });
@@ -155,7 +155,8 @@ describe("QmdService retrieval normalization", () => {
     );
 
     expect(results[0].originalPath).toBe('"/private/source/note.md"');
-    expect(results[0].body).toContain("original_path");
+    expect(results[0].body).toBe("# Deployment\n\nChecklist text");
+    expect(results[0].body).not.toContain("original_path");
   });
 });
 
