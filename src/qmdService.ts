@@ -278,12 +278,12 @@ export class QmdService {
       return { error: "not_allowed", message: "Collection access denied" };
     }
 
-    const body = sliceBodyLines(doc.body, opts);
     const source = this.sourceMetadata(doc.filepath ?? doc.displayPath);
     const exposeSourcePaths = Boolean(collection && this.policies.canExposeSourcePath(collection, auth));
+    const sanitizedBody = sanitizeResultText(doc.body, exposeSourcePaths);
     return {
       ...doc,
-      body: sanitizeResultText(body, exposeSourcePaths),
+      body: sliceBodyLines(sanitizedBody, opts),
       originalPath: exposeSourcePaths ? source.originalPath : undefined,
       sourceCollection: source.sourceCollection,
     };
