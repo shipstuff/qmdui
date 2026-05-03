@@ -349,8 +349,8 @@ app.post("/api/documents/get", async (req, res, next) => {
   try {
     const input = z.object({
       path: z.string().min(1),
-      fromLine: z.number().int().positive().optional(),
-      maxLines: z.number().int().positive().optional(),
+      fromLine: nullableOptional(z.number().int().positive()),
+      maxLines: nullableOptional(z.number().int().positive()),
     }).parse(req.body);
     res.json(await qmd.getDocument(input.path, authFromRequest(req), input));
   } catch (error) {

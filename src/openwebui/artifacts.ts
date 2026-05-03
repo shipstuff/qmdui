@@ -130,7 +130,11 @@ class Tools:
         __user__: Optional[dict] = None,
     ) -> str:
         """Read a QMD document by qmdPath or docid returned by qmd_retrieve. Use this when search results identify a file but more file content is needed."""
-        payload = {"path": path, "fromLine": from_line, "maxLines": max_lines}
+        payload = {"path": path}
+        if from_line is not None:
+            payload["fromLine"] = from_line
+        if max_lines is not None:
+            payload["maxLines"] = max_lines
         async with httpx.AsyncClient(timeout=120) as client:
             response = await client.post(
                 f"{self.valves.QMDUI_BASE_URL}/api/documents/get",
@@ -630,11 +634,16 @@ class Tools:
         __user__: Optional[dict] = None,
     ) -> dict:
         """Admin-only: fetch a QMD document by generated path/doc id."""
+        payload = {"path": path}
+        if from_line is not None:
+            payload["fromLine"] = from_line
+        if max_lines is not None:
+            payload["maxLines"] = max_lines
         return await self._request(
             "POST",
             "/api/documents/get",
             __user__,
-            {"path": path, "fromLine": from_line, "maxLines": max_lines},
+            payload,
             timeout=120,
         )
 
