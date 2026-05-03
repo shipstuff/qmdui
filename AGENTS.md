@@ -58,6 +58,37 @@ The seed defaults are controlled by:
 - `QMDUI_SEED_ACCESS_GROUPS=qa`
 - `QMDUI_SEED_EXPOSE_SOURCE_PATHS=false`
 
+## Validation Notes
+
+Use these checks when changing deployment, retrieval, embeddings, or Open WebUI artifacts:
+
+- Always run `npm run build` and `npm test` before pushing.
+- For Kubernetes smoke checks, verify the deployed image and runtime env:
+  - `kubectl -n open-webui get deploy qmdui -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'`
+  - `kubectl -n open-webui exec deploy/qmdui -- env | rg 'QMDUI_(EMBED_PROVIDER|OLLAMA|EMBED_TIMEOUT)|QMD_|TMPDIR'`
+- Confirm the admin/runtime config matches the QMD config exposed by the API:
+  - `GET /api/admin/runtime`
+  - `GET /api/admin/qmd-config`
+- Confirm Open WebUI artifacts served by QMDUI contain expected tools:
+  - `GET /api/openwebui/tool.py` should include both `qmd_retrieve` and `qmd_get_document`.
+  - Open WebUI's imported `qmd_retrieve` tool specs should expose both methods after bootstrap/import.
+- For retrieval validation, run `/api/search/retrieve` with `mode=deep` and verify results include non-empty `snippet` content, `qmdPath`, and `docid`. Vector results can otherwise look like metadata-only citations.
+- For file access validation, call `/api/documents/get` with a `qmdPath` returned by retrieval. The returned body must not include QMDUI-generated frontmatter or `original_path` metadata; source paths belong in structured citation fields only when policy allows them.
+- When testing Open WebUI tool behavior directly, execute the imported `qmd_retrieve` tool from the Open WebUI pod with its stored valves. A valid result should include `Content:` text blocks, and `qmd_get_document` should read the same `qmdPath` without requiring a shared filesystem mount.
+
+## Bugs Found During Dogfood
+
+- Remote Ollama embedding errors initially marked jobs completed. Embedding jobs must fail if errors occur or documents remain pending when `QMDUI_EMBED_REQUIRE_COMPLETE=true`.
+- The admin QMD config view initially showed the static local `embeddinggemma` model even when runtime embeddings used Ollama. Keep `/api/admin/runtime`, `/api/admin/qmd-config`, and the deployment ConfigMap in sync.
+- The first OpenClaw embed run was slow because live `QMDUI_OLLAMA_BATCH_SIZE` was `16`. Warm local synthetic tests showed much higher throughput, but live OpenClaw chunks were the real benchmark.
+- The current representative OpenClaw throughput is about 4-6 chunks/sec through Ollama `embeddinggemma`; batch logs showed the time is almost entirely `embedMs`, not SQLite storage. Batched SQLite inserts reduced store time to single or low double-digit milliseconds per batch.
+- The earlier 25-40 chunks/sec numbers came from synthetic, repetitive benchmark text. Real OpenClaw markdown/session chunks are larger and tokenize differently; direct Ollama calls with real chunks reproduced the slower rate.
+- QMDUI generated `/tmp/qmdui` via `TMPDIR` but did not ensure the directory existed. Startup now creates it.
+- Deep/vector retrieval returned body internally but normalized results omitted content when `includeFullDocument=false` and `snippet` was empty. Normalize vector results into safe excerpts so the model receives actual text.
+- `qmd_get_document` was only exposed in admin tools. Regular retrieval tools now include a read-only document fetcher so the LLM can read a retrieved file by `qmdPath` or docid.
+- Open WebUI tool calls sent Python `None` as JSON `null` for optional line fields; `/api/documents/get` now accepts null/omitted values and the generated tools omit unset line options.
+- Generated frontmatter leaked into content for source-path-exposed users. Returned model-visible content should strip QMDUI frontmatter; expose original paths as structured metadata only.
+
 ## Editing Rules
 
 - Keep source files and generated index data separate. Removing a collection must never delete source files.
