@@ -8,9 +8,13 @@ const qmdUiToken = process.env.QMDUI_API_TOKEN ?? "";
 const companyGroupName = env("QMDUI_COMPANY_GROUP", "qa");
 const companyModelId = env("QMDUI_COMPANY_MODEL_ID", "company-knowledge");
 const companyModelName = env("QMDUI_COMPANY_MODEL_NAME", "Company Knowledge");
+const adminModelId = env("QMDUI_ADMIN_MODEL_ID", "qmd-admin");
+const adminModelName = env("QMDUI_ADMIN_MODEL_NAME", "QMD Admin");
 const assistantFunctionId = "qmd_assistant";
 const assistantPipeModelId = `${assistantFunctionId}.qmd-assistant`;
+const baseModelId = env("QMDUI_BASE_MODEL", "");
 const companyModelBaseId = env("QMDUI_COMPANY_MODEL_BASE_ID", assistantPipeModelId);
+const adminModelBaseId = env("QMDUI_ADMIN_MODEL_BASE_ID", baseModelId || companyModelBaseId);
 const retrievalMode = env("QMDUI_RETRIEVAL_MODE", "deep");
 const topK = numberEnv("QMDUI_TOP_K", 8);
 const minScore = numberEnv("QMDUI_MIN_SCORE", 0);
@@ -78,7 +82,7 @@ await ensureFunctionState(assistantFunctionId, assistant, { is_active: true, is_
 await updateFunctionValves(assistantFunctionId, {
   QMDUI_BASE_URL: qmdUiBaseUrl,
   QMDUI_API_TOKEN: qmdUiToken,
-  BASE_MODEL: env("QMDUI_BASE_MODEL", ""),
+  BASE_MODEL: baseModelId,
   RETRIEVAL_MODE: retrievalMode,
   TOP_K: topK,
   MIN_SCORE: minScore,
@@ -96,6 +100,21 @@ await upsertModel(companyModelId, {
   },
   params: {},
   access_grants: [grant("group", group.id, "read")],
+  is_active: true,
+});
+
+await upsertModel(adminModelId, {
+  name: adminModelName,
+  base_model_id: adminModelBaseId,
+  meta: {
+    description: "Admin QMDUI model with retrieval and QMD management tools attached.",
+    tags: ["QMDUI", "Admin"],
+    toolIds: ["qmd_retrieve", "qmd_admin_tools"],
+    qmduiManaged: true,
+    adminOnly: true,
+  },
+  params: {},
+  access_grants: [],
   is_active: true,
 });
 
