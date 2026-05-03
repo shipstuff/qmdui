@@ -85,9 +85,10 @@ class Tools:
         top_k: Optional[int] = None,
         min_score: Optional[float] = None,
         intent: Optional[str] = None,
+        include_full_document: bool = False,
         __user__: Optional[dict] = None,
     ) -> str:
-        """Retrieve relevant QMD context for answering questions. Use this for company/internal knowledge."""
+        """Retrieve relevant QMD context for answering questions. Use this for company/internal knowledge. Results include content excerpts plus qmdPath/docid citations; call qmd_get_document with qmdPath/docid when you need the full file."""
         payload = {
             "query": query,
             "mode": mode or self.valves.DEFAULT_MODE,
@@ -95,6 +96,7 @@ class Tools:
             "topK": top_k or self.valves.TOP_K,
             "minScore": self.valves.MIN_SCORE if min_score is None else min_score,
             "intent": intent,
+            "includeFullDocument": include_full_document,
         }
         async with httpx.AsyncClient(timeout=120) as client:
             response = await client.post(
@@ -114,10 +116,39 @@ class Tools:
             citation = result.get("citation", {})
             title = result.get("title") or citation.get("title") or "Untitled"
             path = citation.get("originalPath") or citation.get("qmdPath") or result.get("qmdPath")
+            docid = citation.get("docid") or result.get("docid") or ""
             score = result.get("score", 0)
             snippet = result.get("snippet") or result.get("body") or ""
-            lines.append(f"[{index}] {title} ({score:.2f}) — {path}\\n{snippet}")
+            lines.append(f"[{index}] {title} ({score:.2f}) — {path}\\nDoc ID: {docid}\\nContent:\\n{snippet}")
         return "\\n\\n".join(lines)
+
+    async def qmd_get_document(
+        self,
+        path: str,
+        from_line: Optional[int] = None,
+        max_lines: Optional[int] = None,
+        __user__: Optional[dict] = None,
+    ) -> str:
+        """Read a QMD document by qmdPath or docid returned by qmd_retrieve. Use this when search results identify a file but more file content is needed."""
+        payload = {"path": path, "fromLine": from_line, "maxLines": max_lines}
+        async with httpx.AsyncClient(timeout=120) as client:
+            response = await client.post(
+                f"{self.valves.QMDUI_BASE_URL}/api/documents/get",
+                json=payload,
+                headers=await self._headers(__user__),
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        if data.get("error"):
+            return f"QMD document error: {data.get('message') or data.get('error')}"
+
+        title = data.get("title") or data.get("displayPath") or data.get("filepath") or path
+        qmd_path = data.get("displayPath") or data.get("filepath") or path
+        body = data.get("body") or ""
+        if not body:
+            return f"QMD document found but no content was returned: {qmd_path}"
+        return f"# {title}\\nSource: {qmd_path}\\n\\n{body}"
 `;
 }
 

@@ -25,6 +25,7 @@ type QmdSearchResult = {
   snippet?: string;
   body?: string;
   bestChunk?: string;
+  chunkPos?: number;
   line?: number;
 };
 
@@ -279,10 +280,11 @@ export class QmdService {
 
     const body = opts ? await store.getDocumentBody(pathOrDocid, opts) : doc.body;
     const source = this.sourceMetadata(doc.filepath ?? doc.displayPath);
+    const exposeSourcePaths = Boolean(collection && this.policies.canExposeSourcePath(collection, auth));
     return {
       ...doc,
-      body,
-      originalPath: collection && this.policies.canExposeSourcePath(collection, auth) ? source.originalPath : undefined,
+      body: sanitizeResultText(body, exposeSourcePaths),
+      originalPath: exposeSourcePaths ? source.originalPath : undefined,
       sourceCollection: source.sourceCollection,
     };
   }
@@ -294,7 +296,10 @@ export class QmdService {
     const exposeSourcePaths = Boolean(collection && this.policies.canExposeSourcePath(collection, auth));
     const originalPath = exposeSourcePaths ? source.originalPath : undefined;
     const title = item.title || basename(qmdPath) || "Untitled";
-    const snippet = sanitizeResultText(item.snippet ?? item.bestChunk, exposeSourcePaths);
+    const snippet = sanitizeResultText(
+      item.snippet ?? item.bestChunk ?? excerptBody(item.body, item.chunkPos),
+      exposeSourcePaths,
+    );
     const body = includeFullDocument ? sanitizeResultText(item.body, exposeSourcePaths) : undefined;
     return {
       docid: item.docid ? `#${String(item.docid).replace(/^#/, "")}` : undefined,
@@ -340,6 +345,16 @@ export class QmdService {
       return undefined;
     }
   }
+}
+
+function excerptBody(body: string | undefined, chunkPos: number | undefined, maxChars = 4000): string | undefined {
+  if (!body) return undefined;
+  const start = Math.max(0, Number.isFinite(chunkPos) ? Number(chunkPos) : 0);
+  const excerpt = body.slice(start, start + maxChars);
+  if (!excerpt.trim()) return undefined;
+  const prefix = start > 0 ? "[...]\n" : "";
+  const suffix = start + maxChars < body.length ? "\n[...]" : "";
+  return `${prefix}${excerpt}${suffix}`;
 }
 
 function collectionFromDisplayPath(path: string): string | undefined {
