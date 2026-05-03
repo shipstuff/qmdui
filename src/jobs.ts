@@ -3,6 +3,7 @@ import type { JobRecord } from "./types.js";
 
 type JobContext = {
   log: (message: string) => void;
+  metric: (values: Record<string, string | number | boolean | null | undefined>) => void;
   progress: (value: number) => void;
   isCancelled: () => boolean;
 };
@@ -61,6 +62,12 @@ export class JobRunner {
         const line = `${new Date().toISOString()} ${message}`;
         record.logs.push(line);
         console.info(`[job:${record.type}:${id}] ${line}`);
+      },
+      metric: (values) => {
+        record.metrics ??= {};
+        for (const [key, value] of Object.entries(values)) {
+          if (value !== undefined) record.metrics[key] = value;
+        }
       },
       progress: (value) => {
         record.progress = Math.max(0, Math.min(100, Math.round(value)));

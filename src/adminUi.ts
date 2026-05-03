@@ -152,6 +152,15 @@ export function adminUiHtml(): string {
         font-size: 12px;
         font-variant-numeric: tabular-nums;
       }
+      .job-metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
       .log {
         min-height: 40px;
         max-height: 220px;
@@ -531,7 +540,32 @@ export function adminUiHtml(): string {
       function renderJobProgress(job) {
         if (job.progress === undefined || job.progress === null) return "";
         const progress = Math.max(0, Math.min(100, Math.round(Number(job.progress) || 0)));
-        return '<div class="job-progress"><progress max="100" value="' + h(String(progress)) + '"></progress><span>' + h(String(progress)) + '%</span></div>';
+        return '<div class="job-progress"><progress max="100" value="' + h(String(progress)) + '"></progress><span>' + h(jobProgressLabel(job, progress)) + '</span></div>' +
+          renderJobMetrics(job);
+      }
+
+      function jobProgressLabel(job, progress) {
+        const rate = Number(job.metrics && job.metrics.latestChunksPerSec);
+        return Number.isFinite(rate) && rate > 0 ? progress + '% - ' + rate.toFixed(2) + ' chunks/sec' : progress + '%';
+      }
+
+      function renderJobMetrics(job) {
+        const metrics = job.metrics || {};
+        const items = [];
+        if (metrics.latestBatchChunks) items.push(metrics.latestBatchChunks + ' chunks/batch');
+        if (metrics.ollamaBatchSize) items.push('target batch ' + metrics.ollamaBatchSize);
+        if (metrics.latestBatchMs) items.push('batch ' + formatMs(metrics.latestBatchMs));
+        if (metrics.latestEmbedMs) items.push('embed ' + formatMs(metrics.latestEmbedMs));
+        if (metrics.latestStoreMs !== undefined) items.push('store ' + formatMs(metrics.latestStoreMs));
+        if (metrics.chunksEmbedded) items.push(metrics.chunksEmbedded + ' chunks embedded');
+        return items.length ? '<div class="job-metrics">' + items.map((item) => '<span>' + h(String(item)) + '</span>').join("") + '</div>' : "";
+      }
+
+      function formatMs(value) {
+        const ms = Number(value);
+        if (!Number.isFinite(ms)) return "";
+        if (ms >= 1000) return (ms / 1000).toFixed(1) + 's';
+        return Math.round(ms) + 'ms';
       }
 
       function jobClass(status) {

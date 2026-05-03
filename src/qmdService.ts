@@ -45,6 +45,7 @@ export type QmdUiEmbedOptions = {
   failOnErrors?: boolean;
   onProgress?: (info: EmbedProgress) => void;
   onLog?: (message: string) => void;
+  onMetric?: (values: Record<string, string | number | boolean | null | undefined>) => void;
 };
 
 type EmbedEnvelope = {

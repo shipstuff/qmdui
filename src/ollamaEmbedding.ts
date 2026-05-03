@@ -11,6 +11,7 @@ export type EmbedRequestOptions = {
   chunkStrategy?: ChunkStrategy;
   onProgress?: (info: EmbedProgress) => void;
   onLog?: (message: string) => void;
+  onMetric?: (values: Record<string, string | number | boolean | null | undefined>) => void;
 };
 
 type PendingDoc = {
@@ -272,6 +273,18 @@ export async function generateOllamaEmbeddings(
       options.onLog?.(
         `Ollama embedded batch ${chunkBatchCount}: ${chunkBatch.length} chunks, ${formatBytes(chunkBatch.reduce((sum, chunk) => sum + chunk.bytes, 0))} in ${durationMs}ms (${chunksPerSec.toFixed(2)} chunks/sec; embed=${embedDurationMs}ms, store=${storeDurationMs}ms), progress=${progress}%, totalChunks=${chunksEmbedded}, errors=${errors}`,
       );
+      options.onMetric?.({
+        latestChunksPerSec: Number(chunksPerSec.toFixed(2)),
+        latestBatchMs: durationMs,
+        latestEmbedMs: embedDurationMs,
+        latestStoreMs: storeDurationMs,
+        latestBatchChunks: chunkBatch.length,
+        latestBatchBytes: chunkBatch.reduce((sum, chunk) => sum + chunk.bytes, 0),
+        chunksEmbedded,
+        errors,
+        ollamaBatchSize: config.ollamaBatchSize,
+        embedModel: model,
+      });
       options.onProgress?.({
         chunksEmbedded,
         totalChunks,
