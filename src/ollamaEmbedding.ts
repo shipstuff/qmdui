@@ -10,6 +10,7 @@ export type EmbedRequestOptions = {
   maxBatchBytes?: number;
   chunkStrategy?: ChunkStrategy;
   onProgress?: (info: EmbedProgress) => void;
+  onLog?: (message: string) => void;
 };
 
 type PendingDoc = {
@@ -180,6 +181,11 @@ export async function generateOllamaEmbeddings(
   let totalChunks = 0;
   let bytesProcessed = 0;
   let vectorTableInitialized = false;
+  let chunkBatchCount = 0;
+
+  options.onLog?.(
+    `Ollama embedding started: ${docs.length} docs, ${formatBytes(totalBytes)}, model=${model}, chunkBatchSize=${config.ollamaBatchSize}, docBatches=${batches.length}`,
+  );
 
   for (const batch of batches) {
     const batchBytes = batch.reduce((sum, doc) => sum + doc.bytes, 0);
@@ -197,6 +203,7 @@ export async function generateOllamaEmbeddings(
 
     for (let index = 0; index < chunks.length; index += config.ollamaBatchSize) {
       const chunkBatch = chunks.slice(index, index + config.ollamaBatchSize);
+      const chunkBatchStartedAt = Date.now();
 
       try {
         const embeddings = await client.embedDocuments(chunkBatch, { model });
@@ -230,6 +237,15 @@ export async function generateOllamaEmbeddings(
       const proportionalBytes = batchChunkBytes === 0
         ? batchBytes
         : Math.min(batchBytes, Math.round((batchChunkBytesProcessed / batchChunkBytes) * batchBytes));
+      chunkBatchCount++;
+      const durationMs = Date.now() - chunkBatchStartedAt;
+      const chunksPerSec = durationMs > 0 ? chunkBatch.length / (durationMs / 1000) : chunkBatch.length;
+      const progress = totalBytes > 0
+        ? Math.min(100, Math.round(((bytesProcessed + proportionalBytes) / totalBytes) * 100))
+        : 100;
+      options.onLog?.(
+        `Ollama embedded batch ${chunkBatchCount}: ${chunkBatch.length} chunks, ${formatBytes(chunkBatch.reduce((sum, chunk) => sum + chunk.bytes, 0))} in ${durationMs}ms (${chunksPerSec.toFixed(2)} chunks/sec), progress=${progress}%, totalChunks=${chunksEmbedded}, errors=${errors}`,
+      );
       options.onProgress?.({
         chunksEmbedded,
         totalChunks,
@@ -249,6 +265,12 @@ export async function generateOllamaEmbeddings(
     errors,
     durationMs: Date.now() - startedAt,
   };
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KiB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MiB`;
 }
 
 export async function searchVectorWithOllama(

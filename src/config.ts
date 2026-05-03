@@ -66,12 +66,20 @@ export function getConfig(): AppConfig {
     embedFailOnErrors: boolEnv(process.env.QMDUI_EMBED_FAIL_ON_ERRORS, true),
     ollamaBaseUrl: process.env.QMDUI_OLLAMA_BASE_URL ?? "http://ollama-mini-01:11434",
     ollamaEmbedModel: process.env.QMDUI_OLLAMA_EMBED_MODEL ?? "qwen3-embedding:8b",
-    ollamaBatchSize: numberEnv(process.env.QMDUI_OLLAMA_BATCH_SIZE, 16),
+    ollamaBatchSize: numberEnv(process.env.QMDUI_OLLAMA_BATCH_SIZE, 128),
   };
 }
 
 export function ensureDataDirs(config: AppConfig): void {
-  for (const path of [config.dataDir, config.generatedDir, config.manifestDir, dirname(config.qmdDbPath), dirname(config.qmdConfigPath)]) {
+  const tmpDir = process.env.TMPDIR ? resolve(process.env.TMPDIR) : undefined;
+  for (const path of [
+    config.dataDir,
+    config.generatedDir,
+    config.manifestDir,
+    dirname(config.qmdDbPath),
+    dirname(config.qmdConfigPath),
+    ...(tmpDir ? [tmpDir] : []),
+  ]) {
     if (!existsSync(path)) mkdirSync(path, { recursive: true });
   }
 }

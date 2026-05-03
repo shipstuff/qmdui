@@ -428,6 +428,7 @@ app.post("/api/jobs/embed", requireAdmin, async (req, res, next) => {
       context.log(`Embedding documents via ${input.provider ?? config.embedProvider}`);
       const result = await qmd.embed({
         ...input,
+        onLog: context.log,
         onProgress: (info) => {
           if (info.totalBytes > 0) {
             context.progress(Math.min(99, Math.round((info.bytesProcessed / info.totalBytes) * 100)));

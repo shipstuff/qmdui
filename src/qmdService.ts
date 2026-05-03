@@ -44,6 +44,7 @@ export type QmdUiEmbedOptions = {
   requireComplete?: boolean;
   failOnErrors?: boolean;
   onProgress?: (info: EmbedProgress) => void;
+  onLog?: (message: string) => void;
 };
 
 type EmbedEnvelope = {
@@ -139,6 +140,9 @@ export class QmdService {
     const store = await this.getStore();
     const provider = options.provider ?? this.config.embedProvider;
     const before = await store.getStatus();
+    options.onLog?.(
+      `Embedding status before ${provider}: docs=${before.totalDocuments}, pending=${before.needsEmbedding}`,
+    );
     const result = provider === "ollama"
       ? await generateOllamaEmbeddings(store, this.config, options)
       : await store.embed({
@@ -151,6 +155,9 @@ export class QmdService {
       });
     const after = await store.getStatus();
     const envelope = { provider, result, before, after };
+    options.onLog?.(
+      `Embedding status after ${provider}: docs=${after.totalDocuments}, pending=${after.needsEmbedding}, chunks=${result.chunksEmbedded}, errors=${result.errors}, durationMs=${result.durationMs}`,
+    );
     this.assertEmbedCompleted(envelope, options);
     return envelope;
   }
