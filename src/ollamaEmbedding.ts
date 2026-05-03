@@ -29,6 +29,17 @@ type PendingChunk = {
   bytes: number;
 };
 
+type PendingVector = {
+  hash: string;
+  seq: number;
+  pos: number;
+  embedding: Float32Array;
+};
+
+type TransactionCapableDatabase = QMDStore["internal"]["db"] & {
+  transaction<T extends (...args: any[]) => unknown>(fn: T): T;
+};
+
 type OllamaEmbedResponse = {
   embeddings?: unknown;
   embedding?: unknown;
@@ -182,6 +193,7 @@ export async function generateOllamaEmbeddings(
   let bytesProcessed = 0;
   let vectorTableInitialized = false;
   let chunkBatchCount = 0;
+  let insertEmbeddings: ((vectors: PendingVector[]) => void) | undefined;
 
   options.onLog?.(
     `Ollama embedding started: ${docs.length} docs, ${formatBytes(totalBytes)}, model=${model}, chunkBatchSize=${config.ollamaBatchSize}, docBatches=${batches.length}`,
@@ -204,9 +216,13 @@ export async function generateOllamaEmbeddings(
     for (let index = 0; index < chunks.length; index += config.ollamaBatchSize) {
       const chunkBatch = chunks.slice(index, index + config.ollamaBatchSize);
       const chunkBatchStartedAt = Date.now();
+      let embedDurationMs = 0;
+      let storeDurationMs = 0;
 
       try {
+        const embedStartedAt = Date.now();
         const embeddings = await client.embedDocuments(chunkBatch, { model });
+        embedDurationMs = Date.now() - embedStartedAt;
         if (embeddings.length !== chunkBatch.length) {
           throw new Error(`Ollama returned ${embeddings.length} embeddings for ${chunkBatch.length} chunks`);
         }
@@ -216,19 +232,29 @@ export async function generateOllamaEmbeddings(
           if (!firstEmbedding) throw new Error("Ollama returned empty embeddings");
           internal.ensureVecTable(firstEmbedding.length);
           vectorTableInitialized = true;
+          insertEmbeddings = createEmbeddingBatchInserter(internal, model, embeddedAt);
         }
 
+        const vectors: PendingVector[] = [];
         for (let offset = 0; offset < chunkBatch.length; offset++) {
           const chunk = chunkBatch[offset];
           const embedding = embeddings[offset];
           if (embedding?.length) {
-            internal.insertEmbedding(chunk.hash, chunk.seq, chunk.pos, new Float32Array(embedding), model, embeddedAt);
-            chunksEmbedded++;
+            vectors.push({
+              hash: chunk.hash,
+              seq: chunk.seq,
+              pos: chunk.pos,
+              embedding: new Float32Array(embedding),
+            });
           } else {
             errors++;
           }
           batchChunkBytesProcessed += chunk.bytes;
         }
+        const storeStartedAt = Date.now();
+        insertEmbeddings?.(vectors);
+        storeDurationMs = Date.now() - storeStartedAt;
+        chunksEmbedded += vectors.length;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         throw new Error(`Ollama embedding batch failed after ${chunksEmbedded} chunks: ${message}`);
@@ -244,7 +270,7 @@ export async function generateOllamaEmbeddings(
         ? Math.min(100, Math.round(((bytesProcessed + proportionalBytes) / totalBytes) * 100))
         : 100;
       options.onLog?.(
-        `Ollama embedded batch ${chunkBatchCount}: ${chunkBatch.length} chunks, ${formatBytes(chunkBatch.reduce((sum, chunk) => sum + chunk.bytes, 0))} in ${durationMs}ms (${chunksPerSec.toFixed(2)} chunks/sec), progress=${progress}%, totalChunks=${chunksEmbedded}, errors=${errors}`,
+        `Ollama embedded batch ${chunkBatchCount}: ${chunkBatch.length} chunks, ${formatBytes(chunkBatch.reduce((sum, chunk) => sum + chunk.bytes, 0))} in ${durationMs}ms (${chunksPerSec.toFixed(2)} chunks/sec; embed=${embedDurationMs}ms, store=${storeDurationMs}ms), progress=${progress}%, totalChunks=${chunksEmbedded}, errors=${errors}`,
       );
       options.onProgress?.({
         chunksEmbedded,
@@ -265,6 +291,27 @@ export async function generateOllamaEmbeddings(
     errors,
     durationMs: Date.now() - startedAt,
   };
+}
+
+function createEmbeddingBatchInserter(
+  internal: QMDStore["internal"],
+  model: string,
+  embeddedAt: string,
+): (vectors: PendingVector[]) => void {
+  const db = internal.db as TransactionCapableDatabase;
+  const insertContentVector = db.prepare(
+    `INSERT OR REPLACE INTO content_vectors (hash, seq, pos, model, embedded_at) VALUES (?, ?, ?, ?, ?)`,
+  );
+  const deleteVector = db.prepare(`DELETE FROM vectors_vec WHERE hash_seq = ?`);
+  const insertVector = db.prepare(`INSERT INTO vectors_vec (hash_seq, embedding) VALUES (?, ?)`);
+  return db.transaction((vectors: PendingVector[]) => {
+    for (const vector of vectors) {
+      const hashSeq = `${vector.hash}_${vector.seq}`;
+      insertContentVector.run(vector.hash, vector.seq, vector.pos, model, embeddedAt);
+      deleteVector.run(hashSeq);
+      insertVector.run(hashSeq, vector.embedding);
+    }
+  });
 }
 
 function formatBytes(bytes: number): string {
