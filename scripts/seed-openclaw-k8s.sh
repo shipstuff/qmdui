@@ -3,12 +3,19 @@ set -euo pipefail
 
 NAMESPACE="${NAMESPACE:-open-webui}"
 SERVICE="${SERVICE:-qmdui}"
-SOURCE_ROOT="${SOURCE_ROOT:-/home/carl/.openclaw}"
+SOURCE_ROOT="${SOURCE_ROOT:-/home/carl}"
+SOURCE_TARBALL="${SOURCE_TARBALL:-}"
 REMOTE_ROOT="${REMOTE_ROOT:-/data/seeds/openclaw}"
 LOCAL_PORT="${LOCAL_PORT:-18765}"
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-900}"
+EXCLUDE_DIRS="${EXCLUDE_DIRS:-node_modules .npm .cache .nv .local .ollama}"
 
-if [[ ! -d "$SOURCE_ROOT" ]]; then
+if [[ -n "$SOURCE_TARBALL" && ! -f "$SOURCE_TARBALL" ]]; then
+  echo "Missing source tarball: $SOURCE_TARBALL" >&2
+  exit 1
+fi
+
+if [[ -z "$SOURCE_TARBALL" && ! -d "$SOURCE_ROOT" ]]; then
   echo "Missing source root: $SOURCE_ROOT" >&2
   exit 1
 fi
@@ -19,17 +26,41 @@ if [[ -z "$POD" ]]; then
   exit 1
 fi
 
-if [[ -r "$SOURCE_ROOT" ]]; then
+if [[ -n "$SOURCE_TARBALL" || -r "$SOURCE_ROOT" ]]; then
   SUDO=()
 else
   SUDO=(sudo -n)
 fi
 
-echo "Copying markdown from $SOURCE_ROOT to $POD:$REMOTE_ROOT"
+if [[ -n "$SOURCE_TARBALL" ]]; then
+  echo "Copying markdown from $SOURCE_TARBALL to $POD:$REMOTE_ROOT"
+else
+  echo "Copying markdown from $SOURCE_ROOT to $POD:$REMOTE_ROOT"
+fi
 kubectl -n "$NAMESPACE" exec "$POD" -- sh -lc "rm -rf '$REMOTE_ROOT' && mkdir -p '$REMOTE_ROOT'"
-"${SUDO[@]}" find "$SOURCE_ROOT" -type f -name '*.md' -printf '%P\0' \
-  | "${SUDO[@]}" tar --null -C "$SOURCE_ROOT" -T - -czf - \
-  | kubectl -n "$NAMESPACE" exec -i "$POD" -- tar -xzf - -C "$REMOTE_ROOT"
+if [[ -n "$SOURCE_TARBALL" ]]; then
+  cat "$SOURCE_TARBALL" | kubectl -n "$NAMESPACE" exec -i "$POD" -- tar -xzf - -C "$REMOTE_ROOT"
+else
+  FIND_ARGS=("$SOURCE_ROOT")
+  if [[ -n "$EXCLUDE_DIRS" ]]; then
+    FIND_ARGS+=(\( -type d \()
+    FIRST=1
+    for DIR in $EXCLUDE_DIRS; do
+      if [[ "$FIRST" -eq 1 ]]; then
+        FIRST=0
+      else
+        FIND_ARGS+=(-o)
+      fi
+      FIND_ARGS+=(-name "$DIR")
+    done
+    FIND_ARGS+=(\) -prune \) -o)
+  fi
+  FIND_ARGS+=(-type f -name '*.md' -printf '%P\0')
+
+  "${SUDO[@]}" find "${FIND_ARGS[@]}" \
+    | "${SUDO[@]}" tar --null -C "$SOURCE_ROOT" -T - -czf - \
+    | kubectl -n "$NAMESPACE" exec -i "$POD" -- tar -xzf - -C "$REMOTE_ROOT"
+fi
 
 TOKEN="$(kubectl -n "$NAMESPACE" get secret qmdui-secrets -o jsonpath='{.data.QMDUI_API_TOKEN}' | base64 -d)"
 if [[ -z "$TOKEN" ]]; then

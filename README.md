@@ -124,10 +124,16 @@ GitHub Actions builds `registry.local:30500/shipstuff/qmdui` and runs the deploy
 
 The Kubernetes profile defaults embeddings to Ollama at `http://ollama-mini-01:11434` with `embeddinggemma` and `QMDUI_OLLAMA_BATCH_SIZE=128`. Tune the endpoint/model/batch in `deploy/k8s/configmap.yaml`; changing those values only requires a config rollout, not a Docker rebuild.
 
-The OpenClaw seed source in Kubernetes is `/data/seeds/openclaw`. From a machine that can read `/home/carl/.openclaw`, populate it and trigger the seed job with:
+The OpenClaw seed source in Kubernetes is `/data/seeds/openclaw`. From a machine that can read `/home/carl`, populate it and trigger the seed job with:
 
 ```bash
 scripts/seed-openclaw-k8s.sh
+```
+
+The seed helper defaults to `/home/carl` and skips dependency/cache-heavy directories (`node_modules`, `.npm`, `.cache`, `.nv`, `.local`, `.ollama`). To ingest a staged archive instead, use:
+
+```bash
+SOURCE_TARBALL=/tmp/qmdui-home-carl-md/home-carl-md.tgz scripts/seed-openclaw-k8s.sh
 ```
 
 Warm embedding provider comparisons can be run locally with:

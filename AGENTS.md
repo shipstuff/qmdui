@@ -43,7 +43,9 @@ Do not commit real secrets. `deploy/deploy.sh` creates `qmdui-secrets` with a ge
 
 ## OpenClaw Seed
 
-The local source path `/home/carl/.openclaw` is not present on the Kubernetes nodes. Use `scripts/seed-openclaw-k8s.sh` from a machine that can read Carl's files; it copies markdown files into the QMDUI PVC and triggers `/api/admin/seed`.
+The local source path `/home/carl` is not present on the Kubernetes nodes. Use `scripts/seed-openclaw-k8s.sh` from a machine that can read Carl's files; it copies markdown files into the QMDUI PVC and triggers `/api/admin/seed`.
+
+The seed helper defaults to `/home/carl` and skips dependency/cache-heavy directories (`node_modules`, `.npm`, `.cache`, `.nv`, `.local`, `.ollama`). If Carl stages a tarball from his account, import that exact archive with `SOURCE_TARBALL=/tmp/qmdui-home-carl-md/home-carl-md.tgz scripts/seed-openclaw-k8s.sh`.
 
 The seed defaults are controlled by:
 
