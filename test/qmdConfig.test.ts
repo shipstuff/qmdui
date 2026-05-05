@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AppConfig } from "../src/config.js";
-import { readQmdConfig, writeQmdConfig, writeQmdConfigFromCollections } from "../src/qmdConfig.js";
+import { activeEmbedModel, readQmdConfig, writeQmdConfig, writeQmdConfigFromCollections } from "../src/qmdConfig.js";
 
 const tempDirs: string[] = [];
 
@@ -73,6 +73,51 @@ describe("QMD config helpers", () => {
     expect(content).toContain("openclaw:");
     expect(content).toContain("path: /data/qmdui/generated/openclaw");
     expect(content).toContain("embed: qwen3-embedding:8b");
+  });
+
+  it("preserves non-collection YAML settings when syncing collections", () => {
+    const config = makeConfig();
+    writeQmdConfig(config, [
+      "global_context: Custom operator context",
+      "collections:",
+      "  old:",
+      "    path: /old",
+      "    pattern: '**/*.md'",
+      "models:",
+      "  embed: hf:custom/local-embed.gguf",
+      "  rerank: custom/reranker",
+      "extra_setting:",
+      "  enabled: true",
+      "",
+    ].join("\n"));
+
+    writeQmdConfigFromCollections(config, [{
+      name: "openclaw",
+      path: "/data/qmdui/generated/openclaw",
+      pattern: "**/*.md",
+      includeByDefault: true,
+    }]);
+
+    const content = readFileSync(config.qmdConfigPath, "utf-8");
+    expect(content).toContain("global_context: Custom operator context");
+    expect(content).toContain("embed: hf:custom/local-embed.gguf");
+    expect(content).toContain("rerank: custom/reranker");
+    expect(content).toContain("extra_setting:");
+    expect(content).toContain("openclaw:");
+    expect(content).toContain("path: /data/qmdui/generated/openclaw");
+    expect(content).not.toContain("old:");
+  });
+
+  it("reports the configured local QMD embedding model", () => {
+    const config = makeConfig();
+    writeQmdConfig(config, [
+      "collections: {}",
+      "models:",
+      "  embed: hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf",
+      "",
+    ].join("\n"));
+
+    expect(activeEmbedModel(config)).toBe("hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf");
   });
 
   it("validates and writes YAML config", () => {

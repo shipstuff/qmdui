@@ -10,7 +10,7 @@ import { JobRunner } from "./jobs.js";
 import { buildOpenApi } from "./openapi.js";
 import { openWebUiAdminTools, openWebUiPipe, openWebUiRetrievalTool } from "./openwebui/artifacts.js";
 import { adminUiHtml } from "./adminUi.js";
-import { readQmdConfig, writeQmdConfig } from "./qmdConfig.js";
+import { activeEmbedModel, readQmdConfig, writeQmdConfig } from "./qmdConfig.js";
 import { seedConfiguredCollection, seedOptionsFromEnv } from "./seed.js";
 import type { CollectionAccessPolicy, RetrievalMode } from "./types.js";
 
@@ -128,7 +128,7 @@ app.get("/api/admin/runtime", requireAdmin, (_req, res) => {
     qmdDbPath: config.qmdDbPath,
     qmdConfigPath: config.qmdConfigPath,
     embedProvider: config.embedProvider,
-    activeEmbedModel: config.embedProvider === "ollama" ? config.ollamaEmbedModel : "embeddinggemma",
+    activeEmbedModel: activeEmbedModel(config),
     embedTimeoutMs: config.embedTimeoutMs,
     embedRequireComplete: config.embedRequireComplete,
     embedFailOnErrors: config.embedFailOnErrors,
