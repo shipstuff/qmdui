@@ -58,6 +58,7 @@ export type JobRecord<T = unknown> = {
   type: string;
   status: JobStatus;
   progress?: number;
+  metrics?: Record<string, string | number | boolean | null>;
   logs: string[];
   result?: T;
   error?: string;

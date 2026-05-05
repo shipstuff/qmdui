@@ -22,6 +22,13 @@ function makeConfig(): AppConfig {
     qmdIndexName: "index",
     qmdDbPath: join(dir, "index.sqlite"),
     qmdConfigPath: join(dir, "index.yml"),
+    embedProvider: "qmd",
+    embedTimeoutMs: 600000,
+    embedRequireComplete: true,
+    embedFailOnErrors: true,
+    ollamaBaseUrl: "http://ollama-mini-01:11434",
+    ollamaEmbedModel: "qwen3-embedding:8b",
+    ollamaBatchSize: 16,
   };
 }
 
@@ -118,7 +125,7 @@ describe("QmdService retrieval normalization", () => {
     expect(results[0].body).not.toContain("/private/source/note.md");
   });
 
-  it("preserves original path metadata when policy allows source path exposure", async () => {
+  it("preserves original path metadata separately from model-visible content", async () => {
     const config = makeConfig();
     const policies = new AccessPolicyStore(config);
     policies.set("docs", { collection: "docs", mode: "all", groups: [], users: [], exposeSourcePaths: true });
@@ -148,6 +155,68 @@ describe("QmdService retrieval normalization", () => {
     );
 
     expect(results[0].originalPath).toBe('"/private/source/note.md"');
-    expect(results[0].body).toContain("original_path");
+    expect(results[0].body).toBe("# Deployment\n\nChecklist text");
+    expect(results[0].body).not.toContain("original_path");
+  });
+});
+
+describe("QmdService embedding job status", () => {
+  it("throws when QMD reports embedding errors", async () => {
+    const config = makeConfig();
+    const policies = new AccessPolicyStore(config);
+    const service = new QmdService(config, policies);
+    const fakeStore = {
+      getStatus: async () => ({ totalDocuments: 2, needsEmbedding: 2, hasVectorIndex: false, collections: [] }),
+      embed: async () => ({ docsProcessed: 2, chunksEmbedded: 1, errors: 1, durationMs: 100 }),
+    };
+    (service as any).storePromise = Promise.resolve(fakeStore);
+
+    await expect(service.embed()).rejects.toThrow("1 embedding chunk failed");
+  });
+
+  it("throws when embedding returns without clearing pending documents", async () => {
+    const config = makeConfig();
+    const policies = new AccessPolicyStore(config);
+    const service = new QmdService(config, policies);
+    let calls = 0;
+    const fakeStore = {
+      getStatus: async () => {
+        calls++;
+        return {
+          totalDocuments: 4,
+          needsEmbedding: calls === 1 ? 4 : 3,
+          hasVectorIndex: true,
+          collections: [],
+        };
+      },
+      embed: async () => ({ docsProcessed: 4, chunksEmbedded: 2, errors: 0, durationMs: 100 }),
+    };
+    (service as any).storePromise = Promise.resolve(fakeStore);
+
+    await expect(service.embed()).rejects.toThrow("3 documents still need embeddings");
+  });
+
+  it("allows partial embedding when completion is not required", async () => {
+    const config = makeConfig();
+    const policies = new AccessPolicyStore(config);
+    const service = new QmdService(config, policies);
+    let calls = 0;
+    const fakeStore = {
+      getStatus: async () => {
+        calls++;
+        return {
+          totalDocuments: 4,
+          needsEmbedding: calls === 1 ? 4 : 3,
+          hasVectorIndex: true,
+          collections: [],
+        };
+      },
+      embed: async () => ({ docsProcessed: 4, chunksEmbedded: 2, errors: 0, durationMs: 100 }),
+    };
+    (service as any).storePromise = Promise.resolve(fakeStore);
+
+    await expect(service.embed({ requireComplete: false })).resolves.toMatchObject({
+      result: { chunksEmbedded: 2, errors: 0 },
+    });
   });
 });

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: qmdui
+  namespace: open-webui
+  labels:
+    app: qmdui
+spec:
+  type: ClusterIP
+  selector:
+    app: qmdui
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

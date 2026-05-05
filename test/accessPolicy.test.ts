@@ -21,6 +21,13 @@ function config(): AppConfig {
     qmdIndexName: "index",
     qmdDbPath: join(dir, "index.sqlite"),
     qmdConfigPath: join(dir, "index.yml"),
+    embedProvider: "qmd",
+    embedTimeoutMs: 600000,
+    embedRequireComplete: true,
+    embedFailOnErrors: true,
+    ollamaBaseUrl: "http://ollama-mini-01:11434",
+    ollamaEmbedModel: "qwen3-embedding:8b",
+    ollamaBatchSize: 16,
   };
 }
 

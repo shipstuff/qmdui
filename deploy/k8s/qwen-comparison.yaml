@@ -1,0 +1,160 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qmdui-qwen-config
+  namespace: open-webui
+  labels:
+    app: qmdui-qwen
+data:
+  NODE_ENV: production
+  QMDUI_HOST: 0.0.0.0
+  QMDUI_PORT: "8765"
+  QMDUI_ROOT: /app
+  QMDUI_DATA_DIR: /data/qmdui-qwen
+  QMDUI_GENERATED_DIR: /data/qmdui-qwen/generated
+  QMDUI_MANIFEST_DIR: /data/qmdui-qwen/manifests
+  QMDUI_POLICY_PATH: /data/qmdui-qwen/access-policies.json
+  QMD_INDEX: openclaw-qwen
+  QMD_CONFIG_PATH: /data/config/qmd/openclaw-qwen.yml
+  QMD_DB_PATH: /data/index/openclaw-qwen.sqlite
+  QMDUI_EMBED_PROVIDER: ollama
+  QMDUI_EMBED_TIMEOUT_MS: "86400000"
+  QMDUI_EMBED_REQUIRE_COMPLETE: "true"
+  QMDUI_EMBED_FAIL_ON_ERRORS: "true"
+  # Qwen accuracy comparison uses the local NVIDIA Ollama endpoint forwarded through sf-west-1.
+  QMDUI_OLLAMA_BASE_URL: http://192.168.42.2:11435
+  QMDUI_OLLAMA_EMBED_MODEL: qwen3-embedding:8b
+  QMDUI_OLLAMA_BATCH_SIZE: "128"
+  XDG_CONFIG_HOME: /data/config
+  XDG_CACHE_HOME: /data/cache
+  HOME: /data/home
+  TMPDIR: /tmp/qmdui
+  QMDUI_SEED_COLLECTION: openclaw
+  QMDUI_SEED_SOURCE_ROOT: /data/seeds/openclaw
+  QMDUI_SEED_PATTERN: "**/*.md"
+  QMDUI_SEED_IGNORE: ""
+  QMDUI_SEED_INGEST: "true"
+  QMDUI_SEED_INCLUDE_HIDDEN: "true"
+  QMDUI_SEED_USE_DEFAULT_IGNORE: "false"
+  QMDUI_SEED_FLATTEN_OUTPUT: "true"
+  QMDUI_SEED_CLEAN_OUTPUT: "true"
+  QMDUI_SEED_UPDATE: "true"
+  QMDUI_SEED_EMBED: "false"
+  QMDUI_SEED_REQUIRE_SOURCE: "false"
+  QMDUI_SEED_ACCESS_MODE: groups
+  QMDUI_SEED_ACCESS_GROUPS: qa
+  QMDUI_SEED_EXPOSE_SOURCE_PATHS: "false"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qmdui-qwen
+  namespace: open-webui
+  labels:
+    app: qmdui-qwen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qmdui-qwen
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: qmdui-qwen
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: sf-west-1
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: api
+          image: registry.local:30500/shipstuff/qmdui:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8765
+          envFrom:
+            - configMapRef:
+                name: qmdui-qwen-config
+            - secretRef:
+                name: qmdui-secrets
+                optional: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: qmdui-data
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qmdui-qwen
+  namespace: open-webui
+  labels:
+    app: qmdui-qwen
+spec:
+  type: ClusterIP
+  selector:
+    app: qmdui-qwen
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: qmdui-qwen
+  namespace: open-webui
+  labels:
+    app: qmdui-qwen
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: qmdui-qwen.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: qmdui-qwen
+                port:
+                  name: http

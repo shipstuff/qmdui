@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qmdui-config
+  namespace: open-webui
+  labels:
+    app: qmdui
+data:
+  NODE_ENV: production
+  QMDUI_HOST: 0.0.0.0
+  QMDUI_PORT: "8765"
+  QMDUI_ROOT: /app
+  QMDUI_DATA_DIR: /data/qmdui
+  QMDUI_GENERATED_DIR: /data/qmdui/generated
+  QMDUI_MANIFEST_DIR: /data/qmdui/manifests
+  QMDUI_POLICY_PATH: /data/qmdui/access-policies.json
+  QMD_INDEX: openclaw
+  QMD_CONFIG_PATH: /data/config/qmd/openclaw.yml
+  QMD_DB_PATH: /data/index/openclaw.sqlite
+  QMDUI_EMBED_PROVIDER: ollama
+  QMDUI_EMBED_TIMEOUT_MS: "1800000"
+  QMDUI_EMBED_REQUIRE_COMPLETE: "true"
+  QMDUI_EMBED_FAIL_ON_ERRORS: "true"
+  QMDUI_OLLAMA_BASE_URL: http://ollama-mini-01:11434
+  QMDUI_OLLAMA_EMBED_MODEL: embeddinggemma
+  QMDUI_OLLAMA_BATCH_SIZE: "128"
+  XDG_CONFIG_HOME: /data/config
+  XDG_CACHE_HOME: /data/cache
+  HOME: /data/home
+  TMPDIR: /tmp/qmdui
+  QMDUI_SEED_COLLECTION: openclaw
+  QMDUI_SEED_SOURCE_ROOT: /data/seeds/openclaw
+  QMDUI_SEED_PATTERN: "**/*.md"
+  QMDUI_SEED_IGNORE: ""
+  QMDUI_SEED_INGEST: "true"
+  QMDUI_SEED_INCLUDE_HIDDEN: "true"
+  QMDUI_SEED_USE_DEFAULT_IGNORE: "false"
+  QMDUI_SEED_FLATTEN_OUTPUT: "true"
+  QMDUI_SEED_CLEAN_OUTPUT: "true"
+  QMDUI_SEED_UPDATE: "true"
+  QMDUI_SEED_EMBED: "false"
+  QMDUI_SEED_REQUIRE_SOURCE: "false"
+  QMDUI_SEED_ACCESS_MODE: groups
+  QMDUI_SEED_ACCESS_GROUPS: qa
+  QMDUI_SEED_EXPOSE_SOURCE_PATHS: "false"
